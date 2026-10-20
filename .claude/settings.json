@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": ["Bash(make:*)", "Bash(uv run:*)", "Bash(pytest:*)", "Bash(ruff:*)",
+              "Bash(kubectl get:*)", "Bash(kubectl logs:*)", "Bash(terraform plan:*)"],
+    "ask":   ["Bash(terraform apply:*)", "Bash(terraform destroy:*)", "Bash(kubectl delete:*)",
+              "Bash(aws:*)", "Bash(git push:*)"],
+    "deny":  ["Read(./.env)", "Read(./**/*.pem)"]
+  }
+}
