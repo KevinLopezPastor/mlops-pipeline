@@ -1,9 +1,16 @@
 {
+  "outputStyle": "Mentor",
   "permissions": {
-    "allow": ["Bash(make:*)", "Bash(uv run:*)", "Bash(pytest:*)", "Bash(ruff:*)",
-              "Bash(kubectl get:*)", "Bash(kubectl logs:*)", "Bash(terraform plan:*)"],
-    "ask":   ["Bash(terraform apply:*)", "Bash(terraform destroy:*)", "Bash(kubectl delete:*)",
-              "Bash(aws:*)", "Bash(git push:*)"],
-    "deny":  ["Read(./.env)", "Read(./**/*.pem)"]
+    "allow": [
+      "Bash(make:*)", "Bash(uv run:*)", "Bash(uv add:*)", "Bash(pytest:*)", "Bash(ruff:*)",
+      "Bash(docker compose ps:*)", "Bash(docker compose logs:*)",
+      "Bash(dvc status:*)", "Bash(dvc diff:*)", "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(terraform plan:*)", "Bash(terraform validate:*)"
+    ],
+    "ask": [
+      "Bash(terraform apply:*)", "Bash(terraform destroy:*)", "Bash(aws:*)",
+      "Bash(dvc push:*)", "Bash(git push:*)", "Bash(git commit:*)", "Bash(docker compose down:*)"
+    ],
+    "deny": ["Read(./.env)", "Read(./**/*.pem)"]
   }
 }
