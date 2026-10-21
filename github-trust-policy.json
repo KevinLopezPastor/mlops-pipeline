@@ -12,7 +12,7 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:KevinLopezPastor/*"
+          "token.actions.githubusercontent.com:sub": "repo:KevinLopezPastor@137914994/mlops-reproducible-pipeline@1427587158:ref:refs/heads/main"
         }
       }
     }
