@@ -13,3 +13,6 @@ wheels/
 curl_response
 .claude/settings.local.json
 .archify/
+
+# Secrets
+.env

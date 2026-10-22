@@ -19,7 +19,7 @@ Problem for all of Phase 1: predict NYC taxi trip duration from the public
 
 | Day | Hours | Work |
 | --- | --- | --- |
-| Mon | 2 | Read MLflow registry and aliases docs; run `docker compose` with MLflow, Postgres and MinIO (S3-compatible). |
+| Mon | 2 | Read MLflow registry and aliases docs; run `docker compose` with MLflow and Postgres, artifacts in a real S3 bucket (Terraform). |
 | Tue | 2 | Read DVC and Prefect basics; download Jan to Mar 2024 yellow taxi Parquet; track it with DVC on an S3 remote. |
 | Wed | 2.5 | Write `ingest` and `validate` tasks; a Pandera schema rejects negative durations and out-of-range zones. |
 | Thu | 2.5 | Write `features`, `train` (LightGBM) and `evaluate` tasks; log params, metrics and the DVC data hash to MLflow. |
@@ -36,7 +36,8 @@ mlops-reproducible-pipeline/
 ├── schemas/trips.py            # Pandera schema
 ├── data/.gitignore             # data lives in DVC
 ├── dvc.yaml  params.yaml
-├── docker-compose.yml          # MLflow + Postgres + MinIO
+├── docker-compose.yml          # MLflow + Postgres (artifacts in S3)
+├── infra/                      # Terraform: S3 bucket for MLflow artifacts and the DVC remote
 ├── tests/
 ├── docs/architecture.html      # archify
 └── Makefile                    # make up / pipeline / test / demo
@@ -44,9 +45,24 @@ mlops-reproducible-pipeline/
 
 ## Archify diagram
 
-Show: the S3 or MinIO data store versioned by DVC, the six Prefect tasks in order, the Pandera gate
+Show: the S3 data store versioned by DVC, the six Prefect tasks in order, the Pandera gate
 with its failure path, MLflow tracking and registry, and the champion promotion decision.
 Follow-up prompt: "Highlight the path a new data version takes to become @champion."
+
+## Decisions
+
+**Real S3 instead of MinIO (2026-10-22).** The plan originally used MinIO as the local S3-compatible
+store. We dropped it for three reasons:
+
+1. MinIO stopped publishing official community images in late 2025; `minio/minio` and `minio/mc`
+   no longer resolve on Docker Hub, quay.io or ghcr.io.
+2. The only working option, `bitnamilegacy/minio`, is a frozen archive with no security patches that
+   Bitnami can delete at any time. A public repo whose "clone and run" depends on it can break with no warning.
+3. We need the S3 bucket anyway for the DVC remote, so one bucket (prefixes `mlflow/` and `dvc/`),
+   created with Terraform, gives one storage story and matches production (S3 plus IAM).
+
+Cost: a clone now needs an AWS account and profile (`ml-roadmap`), so it is no longer fully offline.
+An offline mode with a maintained S3 stand-in (RustFS) is parked as a stretch idea in PROGRESS.md.
 
 ## Done when
 
