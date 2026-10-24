@@ -1,9 +1,9 @@
 """Monday smoke test: tracking -> S3 artifacts -> registry -> alias -> load by alias."""
 
 import mlflow
+from mlflow import MlflowClient
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
-from mlflow import MlflowClient
 
 TRACKING_URI = "http://localhost:5000"
 MODEL_NAME = "smoke_model_test_2"
