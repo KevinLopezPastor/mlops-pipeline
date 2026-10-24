@@ -17,6 +17,49 @@
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
+### 2026-10-25: Tue (closed), Wed in progress (`ingest` + schema done, `validate` not yet)
+
+**Done**
+- Tue closed: `dvc push` done, `dvc status -c` reports cache and remote in sync. DVC setup committed in `4ec17d0`
+  ([.dvc/config](../../.dvc/config), [data/raw.dvc](../../data/raw.dvc)).
+- Confirmed from Mon: MLflow UI shows version 2 with `@champion` and its tag.
+- Layout decided: `src/taxi/` (the scaffold's `src/mlops_reproducible_pipeline/` removed). `module-name = "taxi"` in
+  [pyproject.toml](../../pyproject.toml); deps added: `pandera`, `prefect`. Empty task modules in [src/taxi/](../../src/taxi/).
+- [src/taxi/ingest.py](../../src/taxi/ingest.py): reads the 3 Parquet files, one concat, adds `duration_min`.
+  Ran: 9,554,778 rows, 20 columns. (not committed)
+- [schemas/trips.py](../../schemas/trips.py): strict schema (`duration_min` in 0 to 1500, zones 1 to 265, `Int32` coerced). (not committed)
+- [src/taxi/validate.py](../../src/taxi/validate.py): stub with `MAX_INVALID_FRACTION = 0.05` and `TODO(human)`. (not committed)
+
+**Design decision (gate behavior)**
+- Real data has 225 rows violating the schema (180 negative durations, 22 of them below -1 min, 45 above 1500 min), 0.0024%.
+  A strict hard-fail would reject every real month. Rule: drop invalid rows if under 5% of the data, fail the flow at 5% or more.
+  Cleaning happens inside the gate, so `ingest` stays a pure reader.
+
+**Who wrote what**
+- Kevin: all of `ingest.py` (after 5 review rounds: empty check, single concat, `get_run_logger`), all of `schemas/trips.py`
+  (bounds, 1 to 265 zones, dtype fix), the 5% tolerance decision.
+- Claude scaffolded: `src/taxi/` layout and empty modules, pyproject changes, the `ingest` and `validate` stubs, the schema stub.
+
+**Lessons**
+- `pa.Column(int)` means `int64`; TLC zone IDs are `int32`. Use an exact dtype or `coerce=True`, and know which one a gate should do.
+- `get_run_logger()` raises outside a run, so `task.fn()` can't be used as a plain function. Calling the task directly starts a
+  temporary Prefect server (noisy `database is locked` telemetry traceback, harmless).
+- TLC data has routine sub-minute negative durations (meter noise) and 2,621 zero-minute trips; zones 264 and 265 are "Unknown", valid.
+- Windows and WSL share one `.venv` on `D:`; each `uv run` from the other OS deletes and rebuilds it.
+
+**Open**
+- `validate` logic not written yet (Kevin).
+- Logger vs unit tests: decide `get_run_logger` (needs a Prefect run in tests) or stdlib `logging` before Friday's tests.
+- Pick one shell (Windows or WSL), or set `UV_PROJECT_ENVIRONMENT` for WSL. WSL also needs its own `aws sso login`.
+- Threshold lives in a constant; `params.yaml` later so DVC tracks it.
+- Credential expiry (mount `~/.aws` instead of injecting keys) still undecided from Mon.
+- Uncommitted: `ingest.py`, `validate.py`, `schemas/trips.py`, `scripts/smoke_registry.py` change.
+
+**Next step**
+- Write `validate` in `src/taxi/validate.py` (lazy validation, count distinct invalid row indices, drop under 5%, raise otherwise,
+  schema-level failures always raise). Verify with the two commands: a real run (about 9,554,553 rows, min 0, max at most 1500)
+  and a run with 20% rows set to -1 (must fail). Then Thu block: `features`, `train` (LightGBM), `evaluate`.
+
 ### 2026-10-22: Mon (done), compressing Mon + Tue + Wed into one day
 
 **Done** (nothing committed yet; last commit is `3b34154`)
