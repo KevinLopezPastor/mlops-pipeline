@@ -19,14 +19,14 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
     try:
         # Capture the coerced frame returned by Pandera to preserve explicit dtypes (e.g., Int32)
         df_coerced = trips_schema.validate(df, lazy=True)
-        
+
     except pa.errors.SchemaErrors as exc:
         # A null index indicates structural/schema-level failures (e.g., missing columns)
         if exc.failure_cases["index"].isna().any():
             failed_targets = exc.failure_cases["column"].unique().tolist()
             logger.error(
                 "Schema-level validation failed structurally. Missing or incorrect targets: %s",
-                failed_targets
+                failed_targets,
             )
             raise ValueError(
                 "Schema-level validation failed (e.g., missing or altered columns). "
@@ -45,10 +45,12 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
             logger.info(
                 "Validation gate dropped %s invalid rows (%.2f%% of total dataset).",
                 invalid_rows,
-                invalid_fraction * 100
+                invalid_fraction * 100,
             )
             # Re-validate the dropped/reset frame to enforce the schema's coerced dtypes on clean rows.
-            df_coerced = trips_schema.validate(df.drop(index=invalid_row_indices).reset_index(drop=True), lazy=True)
+            df_coerced = trips_schema.validate(
+                df.drop(index=invalid_row_indices).reset_index(drop=True), lazy=True
+            )
         else:
             logger.error(
                 "Validation gate failed: %s invalid rows out of %s total rows. "
@@ -56,8 +58,10 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
                 invalid_rows,
                 total_rows,
                 invalid_fraction * 100,
-                max_invalid_fraction * 100
+                max_invalid_fraction * 100,
             )
-            raise ValueError(f"Invalid data exceeds allowed fraction: {invalid_fraction:.2%}")
+            raise ValueError(
+                f"Invalid data exceeds allowed fraction: {invalid_fraction:.2%}"
+            )
 
     return df_coerced
