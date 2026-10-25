@@ -64,6 +64,21 @@ store. We dropped it for three reasons:
 Cost: a clone now needs an AWS account and profile (`ml-roadmap`), so it is no longer fully offline.
 An offline mode with a maintained S3 stand-in (RustFS) is parked as a stretch idea in PROGRESS.md.
 
+**MAE instead of RMSE for champion promotion (2026-10-25).** The Friday row says `register` promotes on RMSE.
+It promotes on MAE instead, for these reasons:
+
+1. The target has a heavy tail: on the March test set the median trip is 12.5 min, p99.9 is 117 min and the max is 1,499 min.
+   A few multi-hour trips (mostly meters left running) dominate a squared-error metric, and no feature known at request time can predict them.
+2. On that test set the model is 40% better than the mean baseline on MAE (5.48 vs 9.21 min) but only 6% better on raw RMSE (31.08 vs 32.94 min).
+   Raw RMSE would make a good model look barely better than a constant, and it could flip a promotion on a handful of outlier trips.
+3. MAE scores every trip with no filtering, so the comparison does not depend on which trips are left out.
+
+RMSE stays as a secondary diagnostic, computed on trips up to a **fixed** cap (`evaluate.duration_cap_min` = 120 min in `params.yaml`; 6.97 min vs 12.77 for the baseline).
+The cap is never a quantile of the test set: that would change with the data and make champion and challenger incomparable.
+The Pandera cap on `duration_min` stays at 1,500 min, because the gate decides what is physically possible and the metric decides what is scored.
+
+Known mismatch: LightGBM trains on L2 loss (the conditional mean) while MAE rewards the median. An `l1` or `huber` objective is parked in PROGRESS.md.
+
 ## Done when
 
 - [ ] `make pipeline` on a clean clone registers a model with the same metrics as yours.
