@@ -13,6 +13,9 @@
   bucket-init container, selected with `make up-offline`. Only `.env` differs (artifact URI, endpoint,
   credentials). One branch, no long-lived second branch. See "Decisions" in week-01.md for why not MinIO.
 
+- LightGBM `objective="huber"` (or `l1`): the target has a heavy tail (p99.9 = 117 min, max 1499), and the default L2 loss
+  chases it while the registry compares on MAE. Try after the baseline is registered.
+
 ## Sessions
 
 <!-- /checkpoint adds a new entry here, newest first -->

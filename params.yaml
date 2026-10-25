@@ -1,3 +1,15 @@
 validate:
   # Gate tolerance: drop invalid rows below this fraction of the data, fail the flow at or above it.
   max_invalid_fraction: 0.05
+
+train:
+  cutoff_date: "2024-03-01"
+  lgbm:
+    n_estimators: 100
+    learning_rate: 0.05
+    num_leaves: 31
+    random_state: 42
+
+evaluate:
+  # Upper bound (minutes) for the secondary RMSE; fixed so every model and data version is scored the same way.
+  duration_cap_min: 120.0
