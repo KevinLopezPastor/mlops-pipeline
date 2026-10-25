@@ -13,6 +13,7 @@ dependencies = [
     "pandas>=3.0.6",
     "pandera>=0.34.1",
     "prefect>=3.9.0",
+    "pyyaml>=6.0.3",
     "requests>=2.34.2",
     "scikit-learn>=1.9.1",
 ]

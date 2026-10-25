@@ -8,9 +8,9 @@ from prefect import task
 
 from schemas.trips import trips_schema
 
-logger = logging.getLogger(__name__)
+from .params import load_params
 
-MAX_INVALID_FRACTION = 0.05
+logger = logging.getLogger(__name__)
 
 
 @task
@@ -33,13 +33,15 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
                 "Data structure is fundamentally invalid."
             ) from exc
 
+        max_invalid_fraction = load_params()["validate"]["max_invalid_fraction"]
+
         # Count invalid individual rows for data-level failures
         invalid_row_indices = exc.failure_cases["index"].dropna().unique()
         invalid_rows = len(invalid_row_indices)
         total_rows = df.shape[0]
         invalid_fraction = invalid_rows / total_rows if total_rows > 0 else 0
 
-        if invalid_fraction < MAX_INVALID_FRACTION:
+        if invalid_fraction < max_invalid_fraction:
             logger.info(
                 "Validation gate dropped %s invalid rows (%.2f%% of total dataset).",
                 invalid_rows,
@@ -54,7 +56,7 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
                 invalid_rows,
                 total_rows,
                 invalid_fraction * 100,
-                MAX_INVALID_FRACTION * 100
+                max_invalid_fraction * 100
             )
             raise ValueError(f"Invalid data exceeds allowed fraction: {invalid_fraction:.2%}")
 
