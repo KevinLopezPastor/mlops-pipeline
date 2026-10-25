@@ -20,6 +20,50 @@
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
+### 2026-10-25 (night): Thu block done (`features`, `train`, `evaluate`, MLflow-logged flow)
+
+**Done** (last commit `dc64923`)
+- [src/taxi/features.py](../../src/taxi/features.py): 7 inputs (pickup hour and weekday, fixed `CategoricalDtype` zones 1 to 265, vendor, rate code,
+  passenger count); native NaN kept (751,815 rows) as `Int8`/category. Post-trip columns (`trip_distance`, fares, tips, tolls, totals) excluded as leakage.
+- [src/taxi/train.py](../../src/taxi/train.py): time split at `train.cutoff_date` (2024-03-01): 5,972,080 train / 3,582,473 test rows; LightGBM, seeded;
+  empty-split guard; no `eval_set` (the test period is the held-out score).
+- [src/taxi/evaluate.py](../../src/taxi/evaluate.py): `mae` (primary, `PRIMARY_METRIC`), `rmse_capped` (trips up to `evaluate.duration_cap_min` = 120), `rmse_raw`.
+  Baseline run: MAE 5.4802, RMSE capped 6.9655, RMSE raw 31.0753 (mean baseline: 9.21 / 12.77 / 32.94).
+- [flows/training_flow.py](../../flows/training_flow.py) + [src/taxi/lineage.py](../../src/taxi/lineage.py): one MLflow run per flow run, tags `lineage.dvc_data_hash`,
+  `lineage.git_commit`, `lineage.git_dirty`, `primary_metric`; `params.yaml` flattened into run params; `make pipeline` ran end to end in about 50 s.
+
+**Design decisions**
+- Registry compares on **MAE**, not RMSE as written in the plan: the target has a heavy tail (median 12.5 min, p99.9 117, max 1499), so raw RMSE
+  barely moves (6% better than the mean baseline) while MAE improves 40%. The cap for the secondary RMSE is a fixed param, never a per-test-set quantile.
+- The schema cap stays at 1500 min: the gate decides what is physically possible, the metric decides what is scored.
+
+**Who wrote what**
+- Kevin: feature choices and leakage reasoning, fixed zone categories and NaN policy, the split rule and hyperparameters, the empty-split guard,
+  the three metrics, the MAE decision, the run tags, params flattening and metric logging in the flow.
+- Claude scaffolded: stubs and `TODO(human)` for each task, `lineage.py`, the flow skeleton, the `make pipeline` target, `params.yaml` keys, and
+  (at Kevin's request) the `ingest` column pruning.
+
+**Lessons**
+- Peak memory is a design constraint: `ingest` of all 20 columns peaked at 3.6 GB and the pipeline was OOM-killed (exit 137) in WSL (8 GB shared with the stack).
+  Reading 6 columns plus the dropoff time, computing the target per file and concatenating narrow frames cut the `ingest` peak to 1.5 GB (pipeline peak 3.1 GB, in `validate`).
+  Metrics were bit-identical before and after.
+- A process killed with SIGKILL loses buffered stdout when piped; use `python -u` when measuring.
+- MLflow's active run is per thread, so tasks are called directly in the flow, never `.submit()`.
+- `python -m flows.training_flow`, not a path: `schemas` is a top-level package that needs the repo root on `sys.path`.
+- Float summation order changes the last digit of a metric between libraries, so "same metrics" means equal to a tolerance.
+
+**Open**
+- Task logs did not appear in the flow output; `.env` has `PREFECT_LOGGING_EXTRA_LOGGERS=taxi ` with a trailing space. Check `get_current_settings().logging.extra_loggers`.
+- `week-01.md` still says RMSE for the promotion rule; update "Decisions" with the MAE reasoning.
+- Swap was at 1.6 of 2 GB during the run: little memory headroom. `validate` is the peak (second coercion pass after the drop).
+- Uncommitted: `.gitignore`; untracked `nbk_taxi.ipynb` (ignore it, move it, or delete it) so the registered run has `lineage.git_dirty = False`.
+- `dvc.yaml`: decide whether `dvc repro` owns any stage or Prefect owns all of them.
+- Friday: pytest per task, including the end-to-end "bad file fails at the gate" test; `taxi` imports `schemas` from the repo root, which CI must respect.
+
+**Next step**
+- Fri block: `register` (promote to `@champion` only if MAE beats the current champion; Kevin writes the rule and decides how to compare with a tolerance),
+  log the model in the flow, then pytest for each task (`validate` cases from `scripts/probe_validate.py`, the empty-split guard).
+
 ### 2026-10-25 (evening): Wed closed (`validate` done, params and logging settled)
 
 **Done** (committed in `44c528b` and `7620afc`)

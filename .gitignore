@@ -16,3 +16,6 @@ curl_response
 
 # Secrets
 .env
+
+# Jupyter Notebook
+notebooks/
