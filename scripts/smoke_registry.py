@@ -18,7 +18,9 @@ with mlflow.start_run() as run:
     y_pred = model.predict([[1], [2], [3]])
     error = mean_squared_error([1, 2, 3], y_pred)
     mlflow.log_metric("mse", error)
-    info = mlflow.sklearn.log_model(model, name=MODEL_NAME, registered_model_name=MODEL_NAME)
+    info = mlflow.sklearn.log_model(
+        model, name=MODEL_NAME, registered_model_name=MODEL_NAME
+    )
 
 
 client = MlflowClient()
