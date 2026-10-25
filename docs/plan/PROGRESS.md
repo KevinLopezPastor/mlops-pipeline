@@ -17,6 +17,36 @@
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
+### 2026-10-25 (evening): Wed closed (`validate` done, params and logging settled)
+
+**Done** (committed in `44c528b` and `7620afc`)
+- [src/taxi/validate.py](../../src/taxi/validate.py): lazy Pandera validation; null-`index` failures (missing column) always raise;
+  drops invalid rows below the threshold and re-validates so the gate returns the coerced frame (`Int32` zones); raises at or above it.
+  Real data: 9,554,553 rows, min 0.0, max 1499.43.
+- [params.yaml](../../params.yaml) + [src/taxi/params.py](../../src/taxi/params.py): `validate.max_invalid_fraction`, read at call time.
+- Logging decision: stdlib `logging.getLogger(__name__)` in every task, `PREFECT_LOGGING_EXTRA_LOGGERS=taxi` in `.env.example`.
+  `ingest` switched over, so tasks run as plain functions in tests (no `prefect_test_harness`).
+- [scripts/probe_validate.py](../../scripts/probe_validate.py): throwaway probe (clean, few bad, 20% bad, missing column); replaced by pytest Friday.
+
+**Who wrote what**
+- Kevin: the `validate` logic and log messages, the decision to use stdlib logging.
+- Claude scaffolded: the probe, `params.yaml`, `params.py`, the logger wiring and the `ingest` logger swap (at Kevin's request).
+
+**Lessons**
+- `exc.failure_cases.index` is the index of the failure table, not the row labels; the labels are in `failure_cases["index"]`.
+- A null `index` in `failure_cases` means a schema-level failure that dropping rows cannot fix.
+- `schema.validate(df)` returns the coerced frame; discarding it loses the dtype guarantee.
+- WSL git has no identity and no `core.autocrlf`, so `git status` there shows false `M` files. Set `core.autocrlf input` in WSL or use one shell.
+
+**Open**
+- `dvc.yaml`: a param is only tracked by DVC if a stage lists it. Decide Thursday whether `dvc repro` owns any stage or Prefect owns all of them.
+- Friday tests: end-to-end test that a bad data file fails at the gate; the flow must import `taxi.*`, not `src.taxi.*`, for log forwarding.
+- Pick one shell; the shared `.venv` still breaks when Windows `uv` touches a WSL-built one.
+- Uncommitted: `.gitattributes` (`*.ipynb text eol=lf`), untracked `nbk_taxi.ipynb`.
+
+**Next step**
+- Thu block: `features` (Kevin), `train` (LightGBM), `evaluate`, and log params, metrics and the DVC data hash to MLflow.
+
 ### 2026-10-25: Tue (closed), Wed in progress (`ingest` + schema done, `validate` not yet)
 
 **Done**
