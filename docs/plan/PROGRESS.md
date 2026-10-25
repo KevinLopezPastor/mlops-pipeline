@@ -3,8 +3,11 @@
 ## Done when
 
 - [ ] `make pipeline` on a clean clone registers a model with the same metrics
-- [ ] MLflow run tagged with the DVC data hash and git commit
+- [x] MLflow run tagged with the DVC data hash and git commit
+  (run `6777263f602e47b9807abffbd427f1f1`, tags `lineage.dvc_data_hash` and `lineage.git_commit`, confirmed in the MLflow UI; re-check with
+  `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=6777263f602e47b9807abffbd427f1f1" | grep -o '"lineage[^}]*'`)
 - [ ] Bad data fails at the Pandera gate
+  (partly: `uv run python -m scripts.probe_validate` shows 20% bad rows and a missing column both raise; the end-to-end "bad file" test is Friday's)
 - [ ] CI green, archify PNG in the README
 
 ## Stretch ideas (parked)
@@ -19,6 +22,29 @@
 ## Sessions
 
 <!-- /checkpoint adds a new entry here, newest first -->
+
+### 2026-10-25 (late night): Thu wrap-up (decision recorded, Prefect UI confirmed)
+
+**Done**
+- MAE-over-RMSE decision written into "Decisions" in [week-01.md](week-01.md) and the Thursday log committed (`9ee22b6`, `887799e`).
+- Prefect UI confirmed by Kevin: a long-running `prefect server start` shows `training-flow` and its five task runs.
+- [.env.example](../../.env.example): optional, commented `PREFECT_API_URL` for a persistent local server (not committed yet).
+- Thu "Done when" progress: MLflow run carries the DVC hash and git commit tags (box ticked above).
+
+**Who wrote what**
+- Kevin: ran and verified the MLflow run page and the Prefect UI; decided the notebook lives in `notebooks/`.
+- Claude: the `week-01.md` decision paragraph, the `.env.example` lines, this log.
+
+**Open**
+- Task logs in the flow output: confirm `get_current_settings().logging.extra_loggers` is `'taxi'` (the `.env` line had a trailing space), then check that
+  `Validation gate dropped 225 invalid rows` appears in a `make pipeline` run.
+- The Friday row in `week-01.md` still says RMSE; the Decisions section explains why it is MAE.
+- Uncommitted: `.env.example`. Check `git diff .gitignore` and `git status --short` before Friday's first registered run so `lineage.git_dirty` is `False`.
+
+**Next step**
+- Fri block: read the MLflow registry and aliases docs, then write the `register` promotion rule in [src/taxi/register.py](../../src/taxi/register.py) (Kevin).
+  Decide first: improvement margin (absolute or relative, in `params.yaml`), what happens when no champion exists, and how to get from the
+  `@champion` alias to the run holding its MAE. Then pytest per task, starting with `validate` (cases from `scripts/probe_validate.py`) and the empty-split guard.
 
 ### 2026-10-25 (night): Thu block done (`features`, `train`, `evaluate`, MLflow-logged flow)
 
