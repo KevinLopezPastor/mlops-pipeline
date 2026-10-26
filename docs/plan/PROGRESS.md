@@ -4,8 +4,8 @@
 
 - [ ] `make pipeline` on a clean clone registers a model with the same metrics
 - [x] MLflow run tagged with the DVC data hash and git commit
-  (run `6777263f602e47b9807abffbd427f1f1`, tags `lineage.dvc_data_hash` and `lineage.git_commit`, confirmed in the MLflow UI; re-check with
-  `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=6777263f602e47b9807abffbd427f1f1" | grep -o '"lineage[^}]*'`)
+  (clean-commit run `198b9c9a7b634eac878ab06546697379`: `lineage.git_commit` `e8b9856`, `lineage.git_dirty` `False`, `lineage.dvc_data_hash` set; re-check with
+  `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=198b9c9a7b634eac878ab06546697379" | grep -o '"lineage[^}]*'`)
 - [x] Bad data fails at the Pandera gate
   (`tests/test_gate_e2e.py`: a Parquet file with 20% negative durations passes `ingest` and is rejected by `validate`; 1% bad rows are dropped;
   `tests/test_validate.py` covers the missing column)
@@ -26,7 +26,7 @@
 
 ### 2026-10-26: Fri block done (`register`, flow wiring, pytest for every task)
 
-**Done** (not committed yet; last commit is `6213abc`)
+**Done** (committed in `e8b9856`)
 - [src/taxi/register.py](../../src/taxi/register.py): registers a version, tags it `mae` (`repr` of the float), promotes `@champion` if there is none
   (`register.auto_promote_first`) or if `new < champ * (1 - register.relative_margin)` (strict, 1% relative). Champion found through
   `get_registered_model(...).aliases`, not through an exception.
@@ -36,6 +36,9 @@
   `make test`; `pythonpath = ["."]` in [pyproject.toml](../../pyproject.toml). `scripts/probe_validate.py` removed.
 - `make pipeline` now starts a detached Prefect server if none answers (`prefect-up`); `make prefect-down` stops it.
 - "Bad data fails at the Pandera gate" ticked above.
+- First run from a clean commit: run `198b9c9a7b634eac878ab06546697379` (`merciful-rat-495`), tags `lineage.git_commit` = `e8b9856...`,
+  `lineage.git_dirty` = `False`, `lineage.dvc_data_hash` = `1e82f1da5851bbfa0ab1bdc3752a9797.dir`, `promoted` = `False`; MAE 5.480241473956837,
+  RMSE capped 6.9655, RMSE raw 31.0753, identical to Thursday's baseline (1.3 min). The lineage box above now points at this run.
 
 **Who wrote what**
 - Kevin: the three register decisions (relative 1%, auto-promote the first, `mae` tag as the single source), the body of `register`, the flow wiring
@@ -59,7 +62,8 @@
 - Registry clutter: `nyc-taxi-duration-lgbm` v1 (failed run, no alias), v3 and v4 (rejected); the Monday smoke models are still there.
 - `make lint` target for CI (`ruff check`, `ruff format --check`); `.env.example` `PREFECT_API_URL` line is now redundant.
 - Tests take about 78 s, mostly imports and one `log_model` per registry test; check the time in CI.
-- Uncommitted: everything above. Commit before the next `make pipeline` so `lineage.git_dirty` is `False`.
+- The "clean clone" box is not provable yet: it needs `dvc pull` of the data and an AWS profile on a second machine or directory (Sunday).
+- A checked run must be newer than the commit: the first UI check was a stale run (`6213abc`, dirty) from before `e8b9856`.
 
 **Next step**
 - Sat block: GitHub Actions (lint, `make test`, smoke run of the flow on a 1% sample; the tests need no AWS or MLflow server), then the archify diagram.
