@@ -1,5 +1,6 @@
 """Prefect flow wiring the tasks inside one MLflow run."""
 
+import logging
 import os
 from typing import Any
 
@@ -11,11 +12,15 @@ from taxi.features import features
 from taxi.ingest import ingest
 from taxi.lineage import dvc_data_hash, git_commit, git_dirty
 from taxi.params import load_params
+from taxi.register import register
 from taxi.train import train
 from taxi.validate import validate
 
 TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
 EXPERIMENT = "nyc-taxi-duration"
+
+# PREFECT_LOGGING_EXTRA_LOGGERS gives `taxi` Prefect's handlers but no level, so INFO is dropped by default.
+logging.getLogger("taxi").setLevel(logging.INFO)
 
 
 def _flatten_dict(
@@ -36,8 +41,8 @@ def _flatten_dict(
 
 
 @flow
-def training_flow() -> dict[str, float]:
-    """ingest -> validate -> features -> train -> evaluate; register joins on Friday."""
+def training_flow() -> dict[str, Any]:
+    """ingest -> validate -> features -> train -> evaluate -> register."""
     mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT)
 
@@ -67,9 +72,22 @@ def training_flow() -> dict[str, float]:
         # Log metrics to MLflow; PRIMARY_METRIC ("mae") determines model quality for register
         mlflow.log_metrics(metrics)
 
-        # Friday: log the model and let `register` decide on @champion.
+        # 1. Log model using MLflow 3 signature (name= instead of artifact_path=)
+        model_info = mlflow.lightgbm.log_model(
+            lgb_model=model,
+            name="model",
+        )
 
-    return metrics
+        # 2. Register model and evaluate champion promotion against previous runs
+        is_promoted = register(model_uri=model_info.model_uri, metrics=metrics)
+
+        # 3. Record outcome inside the with block so it is attached while the run is active
+        mlflow.set_tag("promoted", str(is_promoted))
+
+    return {
+        "metrics": metrics,
+        "is_promoted": is_promoted,
+    }
 
 
 if __name__ == "__main__":

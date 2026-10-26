@@ -23,3 +23,11 @@ train:
 evaluate:
   # Upper bound (minutes) for the secondary RMSE; fixed so every model and data version is scored the same way.
   duration_cap_min: 120.0
+
+register:
+  model_name: "nyc-taxi-duration-lgbm"
+  primary_metric: "mae"
+  # First model ever registered becomes @champion without a comparison.
+  auto_promote_first: true
+  # Challenger must beat the champion by this fraction: new < champ * (1 - margin).
+  relative_margin: 0.01

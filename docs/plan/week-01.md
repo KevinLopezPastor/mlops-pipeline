@@ -23,7 +23,7 @@ Problem for all of Phase 1: predict NYC taxi trip duration from the public
 | Tue | 2 | Read DVC and Prefect basics; download Jan to Mar 2024 yellow taxi Parquet; track it with DVC on an S3 remote. |
 | Wed | 2.5 | Write `ingest` and `validate` tasks; a Pandera schema rejects negative durations and out-of-range zones. |
 | Thu | 2.5 | Write `features`, `train` (LightGBM) and `evaluate` tasks; log params, metrics and the DVC data hash to MLflow. |
-| Fri | 2 | `register` task promotes to `@champion` only if RMSE beats the current champion; add pytest for each task. |
+| Fri | 2 | `register` task promotes to `@champion` only if MAE beats the current champion (see "Decisions"); add pytest for each task. |
 | Sat | 2.5 | GitHub Actions: lint, tests, and a smoke run of the flow on a 1% sample. Generate the archify diagram. |
 | Sun | 1.5 | README, demo GIF, publish, LinkedIn post. |
 

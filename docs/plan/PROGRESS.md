@@ -6,8 +6,9 @@
 - [x] MLflow run tagged with the DVC data hash and git commit
   (run `6777263f602e47b9807abffbd427f1f1`, tags `lineage.dvc_data_hash` and `lineage.git_commit`, confirmed in the MLflow UI; re-check with
   `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=6777263f602e47b9807abffbd427f1f1" | grep -o '"lineage[^}]*'`)
-- [ ] Bad data fails at the Pandera gate
-  (partly: `uv run python -m scripts.probe_validate` shows 20% bad rows and a missing column both raise; the end-to-end "bad file" test is Friday's)
+- [x] Bad data fails at the Pandera gate
+  (`tests/test_gate_e2e.py`: a Parquet file with 20% negative durations passes `ingest` and is rejected by `validate`; 1% bad rows are dropped;
+  `tests/test_validate.py` covers the missing column)
 - [ ] CI green, archify PNG in the README
 
 ## Stretch ideas (parked)
@@ -22,6 +23,46 @@
 ## Sessions
 
 <!-- /checkpoint adds a new entry here, newest first -->
+
+### 2026-10-26: Fri block done (`register`, flow wiring, pytest for every task)
+
+**Done** (not committed yet; last commit is `6213abc`)
+- [src/taxi/register.py](../../src/taxi/register.py): registers a version, tags it `mae` (`repr` of the float), promotes `@champion` if there is none
+  (`register.auto_promote_first`) or if `new < champ * (1 - register.relative_margin)` (strict, 1% relative). Champion found through
+  `get_registered_model(...).aliases`, not through an exception.
+- [flows/training_flow.py](../../flows/training_flow.py): `mlflow.lightgbm.log_model(name="model")`, `register(...)`, run tag `promoted`; `taxi` logger set to INFO.
+- Registry checked by hand: v2 is `@champion` (mae 5.480241473956837); v3 and v4, same MAE, were registered and rejected.
+- Tests, 13 passing (about 78 s): `test_validate` (4), `test_train` (2, empty split), `test_register` (6, throwaway SQLite registry), `test_gate_e2e` (1).
+  `make test`; `pythonpath = ["."]` in [pyproject.toml](../../pyproject.toml). `scripts/probe_validate.py` removed.
+- `make pipeline` now starts a detached Prefect server if none answers (`prefect-up`); `make prefect-down` stops it.
+- "Bad data fails at the Pandera gate" ticked above.
+
+**Who wrote what**
+- Kevin: the three register decisions (relative 1%, auto-promote the first, `mae` tag as the single source), the body of `register`, the flow wiring
+  (`log_model`, `register`, `promoted` tag), the six `register` cases, the empty-split test, the bad-file test.
+- Claude scaffolded: `register` stub and `params.yaml` keys, `prefect-up`/`test` targets, `tests/conftest.py`, the SQLite registry fixtures, the
+  `write_trips` helper. At Kevin's request: the alias-map lookup, the `taxi` logger level, the fixes to five test issues.
+
+**Lessons**
+- MLflow 3.17 answers a missing alias with `INVALID_PARAMETER_VALUE`, not `RESOURCE_DOES_NOT_EXIST`; read the `aliases` map instead of parsing errors.
+  (Claude gave the wrong code in the first review.)
+- `PREFECT_LOGGING_EXTRA_LOGGERS` copies Prefect's handlers to the logger but sets no level; INFO from `taxi.*` needs `setLevel` in the flow.
+- `register_model` in MLflow 3 needs an `MLmodel` file or a logged model; a bare `runs:/.../model` URI fails. `log_model` runs `uv export` on the
+  project (about 15 s) unless `pip_requirements` is given.
+- `ModelVersion.version` is an `int` from the SQL store and a `str` from REST; `aliases` values are strings.
+- Prefect's server is a process, not a service: it died with the shell, and the flow then fell back to a temporary SQLite server that timed out.
+  Piping a run into `head` kills it with SIGPIPE.
+- `PREFECT_API_URL` from the profile was visible to `prefect config view` but not to `python -m`; the Makefile now exports it.
+
+**Open**
+- `dvc.yaml`: does `dvc repro` own any stage, or does Prefect own all of them? (Kevin's answer was ambiguous; decide before Sunday's README.)
+- Registry clutter: `nyc-taxi-duration-lgbm` v1 (failed run, no alias), v3 and v4 (rejected); the Monday smoke models are still there.
+- `make lint` target for CI (`ruff check`, `ruff format --check`); `.env.example` `PREFECT_API_URL` line is now redundant.
+- Tests take about 78 s, mostly imports and one `log_model` per registry test; check the time in CI.
+- Uncommitted: everything above. Commit before the next `make pipeline` so `lineage.git_dirty` is `False`.
+
+**Next step**
+- Sat block: GitHub Actions (lint, `make test`, smoke run of the flow on a 1% sample; the tests need no AWS or MLflow server), then the archify diagram.
 
 ### 2026-10-25 (late night): Thu wrap-up (decision recorded, Prefect UI confirmed)
 
