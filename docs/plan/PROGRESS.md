@@ -4,7 +4,8 @@
 
 - [ ] `make pipeline` on a clean clone registers a model with the same metrics
 - [x] MLflow run tagged with the DVC data hash and git commit
-  (clean-commit run `198b9c9a7b634eac878ab06546697379`: `lineage.git_commit` `e8b9856`, `lineage.git_dirty` `False`, `lineage.dvc_data_hash` set; re-check with
+  (clean-commit run `198b9c9a7b634eac878ab06546697379`: `lineage.git_commit` `e8b9856`, which no longer exists after the 2026-10-27 history rewrite
+  (now `9f8ad9b`); redo the run from a clean commit before ticking for good. `lineage.git_dirty` `False`, `lineage.dvc_data_hash` set; re-check with
   `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=198b9c9a7b634eac878ab06546697379" | grep -o '"lineage[^}]*'`)
 - [x] Bad data fails at the Pandera gate
   (`tests/test_gate_e2e.py`: a Parquet file with 20% negative durations passes `ingest` and is rejected by `validate`; 1% bad rows are dropped;
@@ -24,9 +25,46 @@
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
+### 2026-10-27: Sat block in progress (smoke sample, CI workflow); history rewritten for the new repo
+
+**Done** (committed in `1bc139b` and `696f7b9`; this log in the next commit)
+- `make lint` ([Makefile](../../Makefile)): `ruff check .` and `ruff format --check .`; passed on the first run.
+- [src/taxi/ingest.py](../../src/taxi/ingest.py): `RAW_DIR` env var (default `data/raw`).
+- [scripts/make_smoke_sample.py](../../scripts/make_smoke_sample.py): seeded 1% sample per month into `tests/data/smoke/` (95,547 rows, 2.0 MB, committed).
+- Local smoke run (`RAW_DIR=tests/data/smoke MLFLOW_TRACKING_URI=sqlite:////tmp/smoke_mlflow.db make pipeline`): 59,721 train / 35,823 test rows,
+  gate dropped 3 rows, MAE 6.2526, v1 auto-promoted to `@champion`. `mlruns/` added to `.gitignore`.
+- [.github/workflows/ci.yml](../../.github/workflows/ci.yml): `lint`, `test`, then `smoke` (`make pipeline` on the sample, SQLite tracking). Not run on GitHub yet.
+- History rewrite: 8 commits had the corporate email as author and `pyproject.toml` `authors`; all 22 commits now use `kevinlopez.ind@gmail.com`.
+  Every hash changed. New remote `origin` = `KevinLopezPastor/mlops-pipeline`; the old repo is to be deleted.
+
+**Who wrote what**
+- Kevin: the sampling rule (`sample()`, seed 42), the decisions (real 1% sample in git, `RAW_DIR` env var), the rewrite decision.
+- Claude scaffolded: `make lint`, the `RAW_DIR` line, the sampling script skeleton, `ci.yml`, the rewrite (`git filter-branch`), this log.
+
+**Lessons**
+- A SQLite tracking URI only holds metadata; artifacts go to `./mlruns` unless the experiment sets `artifact_location`. The location is stored in the
+  `experiments` table at creation.
+- A commit hash covers author, parents and content, so changing one email changes every descendant. Lineage tags that store a SHA go stale; rewrite before the first public push.
+- `git rev-list --all` also walks `refs/remotes/*` and checkpoint refs, so a scan with it is not a check of what a push will send. Push named branches, never `--all`.
+- `sed -i` stripped CRLF from this file (committed with CRLF); restore line endings or the diff shows every line.
+- A 1% sample of real data still had 3 invalid rows, so the smoke run does reach the gate's drop path (not its failure path).
+
+**Open**
+- Hash map old to new (for older entries below): `3b34154` to `ac61fbd`, `4ec17d0` to `010e259`, `44c528b` to `5e710c8`, `7620afc` to `cf9174c`,
+  `dc64923` to `c792665`, `887799e` to `9982d94`, `9ee22b6` to `0077294`, `6213abc` to `8fda985`, `e8b9856` to `9f8ad9b`. Entries below use the new hashes.
+- Redo `make pipeline` from a clean commit (lineage run `198b9c9a…` carries a dead SHA) and update the run id above.
+- Push to the new repo, open a PR so CI triggers (the workflow only runs on push to `main` and on PRs), and confirm green.
+- `.github/workflows/deploy.yml` (OIDC, `sts get-caller-identity`, not in the plan): keep or park it. Its role may trust only the old repo's `main`;
+  the role's trust policy (not in `infra/*.tf`) is scoped to the old repo, so check it before the new repo uses it.
+- `dvc.yaml`: does `dvc repro` own any stage, or does Prefect own all of them? Decide before the archify diagram.
+- Delete the old GitHub repo (`delete_repo` scope missing in `gh`; web UI works), then the local `backup-before-rewrite` branch (already gone) and `refs/original`.
+
+**Next step**
+- Push, open the PR, get CI green. Then the archify diagram (`docs/architecture.html`, plus the follow-up prompt from the plan), after the `dvc.yaml` decision.
+
 ### 2026-10-26: Fri block done (`register`, flow wiring, pytest for every task)
 
-**Done** (committed in `e8b9856`)
+**Done** (committed in `9f8ad9b`)
 - [src/taxi/register.py](../../src/taxi/register.py): registers a version, tags it `mae` (`repr` of the float), promotes `@champion` if there is none
   (`register.auto_promote_first`) or if `new < champ * (1 - register.relative_margin)` (strict, 1% relative). Champion found through
   `get_registered_model(...).aliases`, not through an exception.
@@ -36,7 +74,7 @@
   `make test`; `pythonpath = ["."]` in [pyproject.toml](../../pyproject.toml). `scripts/probe_validate.py` removed.
 - `make pipeline` now starts a detached Prefect server if none answers (`prefect-up`); `make prefect-down` stops it.
 - "Bad data fails at the Pandera gate" ticked above.
-- First run from a clean commit: run `198b9c9a7b634eac878ab06546697379` (`merciful-rat-495`), tags `lineage.git_commit` = `e8b9856...`,
+- First run from a clean commit: run `198b9c9a7b634eac878ab06546697379` (`merciful-rat-495`), tags `lineage.git_commit` = `e8b9856...` (pre-rewrite SHA, now `9f8ad9b`),
   `lineage.git_dirty` = `False`, `lineage.dvc_data_hash` = `1e82f1da5851bbfa0ab1bdc3752a9797.dir`, `promoted` = `False`; MAE 5.480241473956837,
   RMSE capped 6.9655, RMSE raw 31.0753, identical to Thursday's baseline (1.3 min). The lineage box above now points at this run.
 
@@ -63,7 +101,7 @@
 - `make lint` target for CI (`ruff check`, `ruff format --check`); `.env.example` `PREFECT_API_URL` line is now redundant.
 - Tests take about 78 s, mostly imports and one `log_model` per registry test; check the time in CI.
 - The "clean clone" box is not provable yet: it needs `dvc pull` of the data and an AWS profile on a second machine or directory (Sunday).
-- A checked run must be newer than the commit: the first UI check was a stale run (`6213abc`, dirty) from before `e8b9856`.
+- A checked run must be newer than the commit: the first UI check was a stale run (`8fda985`, dirty) from before `9f8ad9b`.
 
 **Next step**
 - Sat block: GitHub Actions (lint, `make test`, smoke run of the flow on a 1% sample; the tests need no AWS or MLflow server), then the archify diagram.
@@ -71,7 +109,7 @@
 ### 2026-10-25 (late night): Thu wrap-up (decision recorded, Prefect UI confirmed)
 
 **Done**
-- MAE-over-RMSE decision written into "Decisions" in [week-01.md](week-01.md) and the Thursday log committed (`9ee22b6`, `887799e`).
+- MAE-over-RMSE decision written into "Decisions" in [week-01.md](week-01.md) and the Thursday log committed (`0077294`, `9982d94`).
 - Prefect UI confirmed by Kevin: a long-running `prefect server start` shows `training-flow` and its five task runs.
 - [.env.example](../../.env.example): optional, commented `PREFECT_API_URL` for a persistent local server (not committed yet).
 - Thu "Done when" progress: MLflow run carries the DVC hash and git commit tags (box ticked above).
@@ -93,7 +131,7 @@
 
 ### 2026-10-25 (night): Thu block done (`features`, `train`, `evaluate`, MLflow-logged flow)
 
-**Done** (last commit `dc64923`)
+**Done** (last commit `c792665`)
 - [src/taxi/features.py](../../src/taxi/features.py): 7 inputs (pickup hour and weekday, fixed `CategoricalDtype` zones 1 to 265, vendor, rate code,
   passenger count); native NaN kept (751,815 rows) as `Int8`/category. Post-trip columns (`trip_distance`, fares, tips, tolls, totals) excluded as leakage.
 - [src/taxi/train.py](../../src/taxi/train.py): time split at `train.cutoff_date` (2024-03-01): 5,972,080 train / 3,582,473 test rows; LightGBM, seeded;
@@ -137,7 +175,7 @@
 
 ### 2026-10-25 (evening): Wed closed (`validate` done, params and logging settled)
 
-**Done** (committed in `44c528b` and `7620afc`)
+**Done** (committed in `5e710c8` and `cf9174c`)
 - [src/taxi/validate.py](../../src/taxi/validate.py): lazy Pandera validation; null-`index` failures (missing column) always raise;
   drops invalid rows below the threshold and re-validates so the gate returns the coerced frame (`Int32` zones); raises at or above it.
   Real data: 9,554,553 rows, min 0.0, max 1499.43.
@@ -168,7 +206,7 @@
 ### 2026-10-25: Tue (closed), Wed in progress (`ingest` + schema done, `validate` not yet)
 
 **Done**
-- Tue closed: `dvc push` done, `dvc status -c` reports cache and remote in sync. DVC setup committed in `4ec17d0`
+- Tue closed: `dvc push` done, `dvc status -c` reports cache and remote in sync. DVC setup committed in `010e259`
   ([.dvc/config](../../.dvc/config), [data/raw.dvc](../../data/raw.dvc)).
 - Confirmed from Mon: MLflow UI shows version 2 with `@champion` and its tag.
 - Layout decided: `src/taxi/` (the scaffold's `src/mlops_reproducible_pipeline/` removed). `module-name = "taxi"` in
@@ -210,7 +248,7 @@
 
 ### 2026-10-22: Mon (done), compressing Mon + Tue + Wed into one day
 
-**Done** (nothing committed yet; last commit is `3b34154`)
+**Done** (nothing committed yet; last commit is `ac61fbd`)
 - Stack: [docker-compose.yml](../../docker-compose.yml) (Postgres + MLflow 3.17.2, proxied artifacts to S3),
   [Dockerfile.mlflow](../../Dockerfile.mlflow), [.env.example](../../.env.example), [Makefile](../../Makefile) (`up`/`down`).
 - Infra: [infra/](../../infra/) with a reusable `modules/s3-bucket`; applied, bucket `mlops-repro-435466091082`.
