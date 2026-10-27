@@ -1,0 +1,16 @@
+# One stage wraps the whole Prefect flow: DVC decides *whether* to run (data, code or params changed),
+# Prefect and MLflow decide *how* it runs and where the model goes. No `outs`: the model lives in MLflow.
+# `make pipeline` starts the Prefect server, then runs `dvc repro`.
+stages:
+  training:
+    cmd: uv run python -m flows.training_flow
+    deps:
+      - data/raw
+      - flows/training_flow.py
+      - src/taxi
+      - schemas
+    params:
+      - validate
+      - ingest
+      - train
+      - evaluate

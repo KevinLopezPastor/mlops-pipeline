@@ -10,7 +10,7 @@ PREFECT_URL := http://127.0.0.1:4200
 # SQLite server that times out on a cold start.
 export PREFECT_API_URL := $(PREFECT_URL)/api
 
-.PHONY: up down pipeline prefect-up prefect-down test lint
+.PHONY: up down pipeline smoke prefect-up prefect-down test lint
 
 up:
 	$(AWS_LOG) && $(AWS_ENV) && docker compose up -d --build
@@ -19,9 +19,15 @@ up:
 down:
 	$(AWS_LOG) && $(AWS_ENV) && docker compose down
 
-# -m, not a script path: it puts the repo root on sys.path, which `schemas` (imported by validate) needs.
-# Run `make up` first; the MLflow server proxies artifacts, so the client needs no AWS credentials.
+# DVC decides whether the `training` stage must run (dvc.yaml); it then runs the flow below.
+# Needs data/raw (`dvc pull`) and `make up`; the MLflow server proxies artifacts, so no AWS credentials here.
+# DVC skips an unchanged stage; `make pipeline ARGS=--force` re-runs it.
 pipeline: prefect-up
+	uv run dvc repro $(ARGS)
+
+# The flow without DVC, for CI: RAW_DIR and MLFLOW_TRACKING_URI come from the environment.
+# -m, not a script path: it puts the repo root on sys.path, which `schemas` (imported by validate) needs.
+smoke: prefect-up
 	uv run python -m flows.training_flow
 
 # Idempotent: starts a detached local Prefect server only if nothing answers on the health endpoint.

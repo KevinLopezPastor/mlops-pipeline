@@ -46,5 +46,5 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      # `make pipeline` starts the local Prefect server first, as it does on your machine.
-      - run: make pipeline
+      # `make smoke` runs the flow without DVC: CI has no `data/raw` to satisfy the stage deps.
+      - run: make smoke
