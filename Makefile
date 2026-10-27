@@ -10,7 +10,7 @@ PREFECT_URL := http://127.0.0.1:4200
 # SQLite server that times out on a cold start.
 export PREFECT_API_URL := $(PREFECT_URL)/api
 
-.PHONY: up down pipeline prefect-up prefect-down test
+.PHONY: up down pipeline prefect-up prefect-down test lint
 
 up:
 	$(AWS_LOG) && $(AWS_ENV) && docker compose up -d --build
@@ -37,6 +37,11 @@ prefect-up:
 # Run from the repo root: tasks read params.yaml relative to the working directory.
 test:
 	uv run pytest -q
+
+# Same two checks CI runs: lint rules, then formatting (check only, never rewrites files).
+lint:
+	uv run ruff check .
+	uv run ruff format --check .
 
 # The [p] keeps pkill from matching its own command line.
 prefect-down:

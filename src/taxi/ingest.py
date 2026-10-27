@@ -1,6 +1,7 @@
 """ingest task."""
 
 import logging
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -10,7 +11,8 @@ from .params import load_params
 
 logger = logging.getLogger(__name__)
 
-RAW_DIR = Path("data/raw")
+# CI points RAW_DIR at the committed 1% sample; locally it stays the DVC-tracked data/raw.
+RAW_DIR = Path(os.environ.get("RAW_DIR", "data/raw"))
 PICKUP = "tpep_pickup_datetime"
 DROPOFF = "tpep_dropoff_datetime"
 
