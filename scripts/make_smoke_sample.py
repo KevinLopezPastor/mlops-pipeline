@@ -19,7 +19,7 @@ SEED = 42
 
 def sample(df: pd.DataFrame) -> pd.DataFrame:
     """Return about FRACTION of one month's rows reproducibly.
-    
+
     Note on gate testing:
     The real dataset has ~0.0024% invalid rows, meaning a 1% sample yields 0-2 invalid rows
     in total. This smoke dataset is meant to verify that the end-to-end pipeline runs cleanly.
