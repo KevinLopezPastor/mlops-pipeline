@@ -1,0 +1,50 @@
+name: CI
+
+# TODO(human): decide the triggers. Push to main plus every PR is the default; add `paths-ignore: ["docs/**"]`
+# if doc-only changes should not spend CI minutes.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: make lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: make test
+
+  # Wiring check on the committed 1% sample: no AWS, no MLflow server. It proves the tasks connect and
+  # a model registers; it does not prove model quality or the gate's failure path (the tests cover that).
+  smoke:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    env:
+      RAW_DIR: tests/data/smoke
+      MLFLOW_TRACKING_URI: sqlite:///${{ github.workspace }}/smoke_mlflow.db
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      # `make pipeline` starts the local Prefect server first, as it does on your machine.
+      - run: make pipeline
