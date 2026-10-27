@@ -1,0 +1,46 @@
+schema: '2.0'
+stages:
+  training:
+    cmd: uv run python -m flows.training_flow
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 1e82f1da5851bbfa0ab1bdc3752a9797.dir
+      size: 160389205
+      nfiles: 3
+    - path: flows/training_flow.py
+      hash: md5
+      md5: 6cd27dae6e3759e5b6d15c36fdfe3c46
+      size: 3183
+      isexec: true
+    - path: schemas
+      hash: md5
+      md5: 9773d92026a821e50b7b273b2fa29116.dir
+      size: 614
+      nfiles: 2
+    - path: src/taxi
+      hash: md5
+      md5: ef1148976019c61624f7690d7f77e3d4.dir
+      size: 15690
+      nfiles: 9
+    params:
+      params.yaml:
+        evaluate:
+          duration_cap_min: 120.0
+        ingest:
+          columns:
+          - tpep_pickup_datetime
+          - PULocationID
+          - DOLocationID
+          - VendorID
+          - RatecodeID
+          - passenger_count
+        train:
+          cutoff_date: '2024-03-01'
+          lgbm:
+            n_estimators: 100
+            learning_rate: 0.05
+            num_leaves: 31
+            random_state: 42
+        validate:
+          max_invalid_fraction: 0.05

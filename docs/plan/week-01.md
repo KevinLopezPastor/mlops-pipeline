@@ -79,6 +79,19 @@ The Pandera cap on `duration_min` stays at 1,500 min, because the gate decides w
 
 Known mismatch: LightGBM trains on L2 loss (the conditional mean) while MAE rewards the median. An `l1` or `huber` objective is parked in PROGRESS.md.
 
+**One DVC stage wraps the whole flow (2026-10-27).** `dvc.yaml` has a single stage, `training`, whose command is the Prefect flow.
+DVC decides whether to run it; Prefect and MLflow decide how it runs and where the model goes.
+
+1. The six Prefect tasks stay as the plan describes them. Splitting the data steps into their own DVC stage would leave Prefect with three.
+2. `deps` are `data/raw`, the flow, `src/taxi` and `schemas`; `params` are the `validate`, `ingest`, `train` and `evaluate` groups.
+   `register.*` is left out: it changes the promotion decision, not the trained model. Changing it needs `make pipeline ARGS=--force`.
+3. `make pipeline` runs `dvc repro`, which skips an unchanged stage (no Prefect run, no MLflow run, no registry version).
+   CI has no `data/raw`, so the smoke job calls `make smoke`, the flow without DVC, on the committed 1% sample.
+4. The MLflow lineage tags stay as they are (git commit, `git_dirty`, hash of `data/raw.dvc`, params logged flat). `dvc.lock` is written after the stage
+   finishes, so a tag computed inside the flow would show the previous run's hashes. The committed `dvc.lock` is the receipt that ties inputs to the commit.
+
+Cost: DVC sees the flow as a black box, so it caches nothing between tasks, and the stage has side effects outside DVC (a registry version).
+
 ## Done when
 
 - [ ] `make pipeline` on a clean clone registers a model with the same metrics as yours.
