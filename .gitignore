@@ -13,7 +13,7 @@ wheels/
 curl_response
 .prefect-server.log
 mlruns/
-.claude/settings.local.json
+.claude/
 .archify/
 
 # Secrets
