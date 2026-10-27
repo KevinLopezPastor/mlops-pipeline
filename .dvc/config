@@ -1,0 +1,6 @@
+[core]
+    remote = storage
+['remote "storage"']
+    url = s3://mlops-repro-435466091082/dvc
+    profile = ml-roadmap
+    region = us-east-1

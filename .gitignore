@@ -11,5 +11,13 @@ wheels/
 
 # Local / generated
 curl_response
+.prefect-server.log
+mlruns/
 .claude/settings.local.json
 .archify/
+
+# Secrets
+.env
+
+# Jupyter Notebook
+notebooks/

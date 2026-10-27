@@ -26,7 +26,7 @@ I study about 15 hours a week, following the day-by-day table in the plan.
 
 - Python 3.12 with `uv`; Ruff for lint and format; pytest for tests.
 - Prefect 3 flows, MLflow 3 tracking + registry with aliases, DVC with an S3 remote, Pandera, LightGBM.
-- Local stack in `docker-compose.yml` (MLflow, Postgres, MinIO). Cloud resources only through Terraform.
+- Local stack in `docker-compose.yml` (MLflow, Postgres); artifacts and the DVC remote live in one S3 bucket. No MinIO (see "Decisions" in the plan). Cloud resources only through Terraform.
 - AWS: profile `ml-roadmap`, region `us-east-1`. Never use any other profile.
 - Data: NYC TLC yellow taxi trips, Jan to Mar 2024, target = trip duration in minutes.
 

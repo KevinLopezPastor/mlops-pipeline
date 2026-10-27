@@ -1,0 +1,4 @@
+FROM ghcr.io/mlflow/mlflow:v3.17.2
+
+# The stock image has neither the Postgres driver nor boto3 (needed for the S3/MinIO artifact store).
+RUN pip install --no-cache-dir psycopg2-binary boto3
