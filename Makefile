@@ -37,10 +37,13 @@ reproduce: prefect-up
 demo: prefect-up
 	@test -z "$$(git status --porcelain)" || { echo "Working tree is not clean: lineage.git_dirty would be True."; exit 1; }
 	@echo "== 1/3  Bad data (20% negative durations) must stop at the gate =="
-	@bad=$$(mktemp -d) && uv run python scripts/make_bad_sample.py $$bad && \
-		if RAW_DIR=$$bad uv run python -m flows.training_flow; then \
-			echo "UNEXPECTED: the gate let bad data through"; rm -rf $$bad; exit 1; \
-		else echo "Rejected at the gate, nothing reached training."; rm -rf $$bad; fi
+	@bad=$$(mktemp -d) && log=$$(mktemp) && uv run python scripts/make_bad_sample.py $$bad && \
+		if RAW_DIR=$$bad uv run python -m flows.training_flow > $$log 2>&1; then \
+			echo "UNEXPECTED: the gate let bad data through"; rm -rf $$bad $$log; exit 1; \
+		elif grep -q "exceeds allowed fraction" $$log; then \
+			grep "exceeds allowed fraction" $$log | tail -n 1; \
+			echo "Rejected at the gate, nothing reached training."; rm -rf $$bad $$log; \
+		else echo "Failed, but not at the gate:"; tail -n 20 $$log; rm -rf $$bad $$log; exit 1; fi
 	@echo "== 2/3  Real data: dvc pull, train, evaluate, register =="
 	@$(MAKE) --no-print-directory reproduce
 	@echo "== 3/3  Lineage of that run =="
