@@ -81,6 +81,10 @@ Open <http://localhost:5000> and look at the newest run: metrics, the three `lin
 On the reference data the run gives MAE 5.4802, RMSE capped 6.9655 and raw RMSE 31.0753 (equal to a tolerance,
 because float summation order can change the last digit between libraries).
 
+**Credentials expire after about an hour.** `make up` injects short-lived SSO credentials into the MLflow container. After
+that the server answers `ExpiredToken` when the model is uploaded, and the flow looks frozen at `log_model` while the client
+retries. Run `make down && make up` before `make reproduce` or `make demo` if the stack has been up for a while.
+
 **Note on the DVC remote.** [.dvc/config](.dvc/config) points to the bucket of the original author, which is private.
 The `dvc remote modify` line in step 2 points the remote (named `storage`) at your own bucket; it edits `.dvc/config`,
 so do not commit that change if you plan to open a PR.
@@ -92,6 +96,7 @@ so do not commit that change if you plan to open a PR.
 | `make pipeline` | `dvc repro`: skips when nothing changed, so it creates no run and no registry version. |
 | `make pipeline ARGS=--force` | Forces a re-run. DVC may rewrite `data/raw.dvc` first, which makes `lineage.git_dirty` `True`: run `git checkout data/raw.dvc` before the real run. |
 | `make reproduce` | `dvc pull`, then always runs the flow. For a fresh clone. |
+| `make demo` | Three beats: a bad file (20% negative durations) is rejected at the gate, the full data trains and registers, then the run's lineage tags are printed. Needs a clean git tree. |
 | `make smoke` | The flow without DVC. CI uses it on the committed 1% sample (`RAW_DIR=tests/data/smoke`). |
 | `make test` / `make lint` | pytest, and Ruff check plus format check. The two CI runs before the smoke job. |
 | `make down` | Stops the stack. |
