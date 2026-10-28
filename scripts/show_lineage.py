@@ -12,7 +12,9 @@ TAGS = ["lineage.git_commit", "lineage.git_dirty", "lineage.dvc_data_hash", "pro
 
 
 def main() -> None:
-    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000"))
+    mlflow.set_tracking_uri(
+        os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    )
     runs = mlflow.search_runs(
         experiment_names=[EXPERIMENT],
         filter_string="attributes.status = 'FINISHED'",
