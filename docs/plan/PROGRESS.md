@@ -60,7 +60,7 @@
   `MLFLOW_UV_AUTO_DETECT=false`, with fresh credentials and a 540 s wait; the cause was not found. The same demo passes in a normal terminal.
 - The stranger path (own bucket, `terraform apply`, `download_data.sh`, `dvc push`, `make reproduce`) is untested; re-downloaded TLC files may hash differently from `1e82f1da…`.
 - `dvc pull` prints `M data/raw/ 3 files modified` on every run (data on `/mnt/d`); the hash is unchanged. Probably cosmetic.
-- `github-trust-policy.json` in the repo root is the old policy with the dead repo name; Terraform owns the role now. Delete it.
+- ~~`github-trust-policy.json` in the repo root~~: deleted (the old policy with the dead repo name; Terraform owns the role).
 - `.dvc/config` names the private bucket (account ID visible in a public repo).
 - Registry clutter: `nyc-taxi-duration-lgbm` has 12+ versions, one `@champion`; the registry story for the demo is not clean.
 - Stretch (parked): mount `~/.aws` read-only with `AWS_PROFILE` so boto3 refreshes SSO credentials itself; raise the 60 s wait in `prefect-up`.
