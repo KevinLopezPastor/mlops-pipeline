@@ -27,9 +27,12 @@
 
 ## Sessions
 
-### 2026-10-28: Sun block (AWS Deployment fixed, lineage run, clean-clone proof, README, `make demo`); no demo GIF
+### 2026-10-28: Sun block done (AWS Deployment fixed, lineage run, clean-clone proof, README, `make demo`, demo GIF); published and posted
 
-**Done** (branch `week-01-mlflow-stack`, last commit `1640143`; PR to `main` opened after this entry)
+**Done** (in `main` through PRs #6 (Sunday work), #7 (demo GIF) and #8 (old trust policy removed); CI and `AWS Deployment` green on `main`)
+- Demo GIF `docs/demo.gif` (1.2 MB), recorded by hand with ScreenToGif and linked under the CI badge in the README (PR #7).
+- LinkedIn post published by Kevin, with the lineage screenshot.
+- `github-trust-policy.json` deleted (PR #8).
 - `AWS Deployment` fixed: the role `GitHubActionsDeployRole` trusted the old repo. The repo uses immutable subjects (`use_immutable_subject`), so the claim is
   `repo:KevinLopezPastor@137914994/mlops-pipeline@1436065944:ref:refs/heads/main`. [infra/github_oidc.tf](../../infra/github_oidc.tf) imports the role and the OIDC provider
   and pins that exact claim with `StringEquals`; the workflow authenticates as `GitHubActions`.
@@ -53,21 +56,19 @@
 - A failed flow leaves a `FAILED` run in MLflow; "latest run" scripts must filter on `FINISHED`.
 - Injected SSO credentials expire after about an hour. The MLflow server then fails the model upload with `ExpiredToken` and the client retries, so the flow looks frozen at `log_model`.
   `docker compose logs` needs the AWS variables; `docker logs <container>` does not.
-- vhs needs ttyd 1.7.2 or newer and, in WSL, `libnss3` for its downloaded Chromium. The recording stalled twice at `log_model` inside vhs; the cause is not found (the first stall was expired credentials).
+- vhs needs ttyd 1.7.2 or newer and, in WSL, `libnss3` for its downloaded Chromium. The recording stalled at `log_model` inside vhs; the first stall was expired credentials, the later ones are unexplained.
 
 **Open**
-- Demo GIF: recorded by hand with ScreenToGif (`docs/demo.gif`, 1.2 MB) and linked under the PNG. vhs stalled at the start of `log_model` in six attempts, with and without
-  `MLFLOW_UV_AUTO_DETECT=false`, with fresh credentials and a 540 s wait; the cause was not found. The same demo passes in a normal terminal.
+- vhs stalls at the start of `log_model` (six attempts, with and without `MLFLOW_UV_AUTO_DETECT=false`, with fresh credentials and a 540 s wait); the cause was not found.
+  The same demo passes in a normal terminal, so the GIF was recorded by hand.
 - The stranger path (own bucket, `terraform apply`, `download_data.sh`, `dvc push`, `make reproduce`) is untested; re-downloaded TLC files may hash differently from `1e82f1da…`.
 - `dvc pull` prints `M data/raw/ 3 files modified` on every run (data on `/mnt/d`); the hash is unchanged. Probably cosmetic.
-- ~~`github-trust-policy.json` in the repo root~~: deleted (the old policy with the dead repo name; Terraform owns the role).
 - `.dvc/config` names the private bucket (account ID visible in a public repo).
-- Registry clutter: `nyc-taxi-duration-lgbm` has 12+ versions, one `@champion`; the registry story for the demo is not clean.
+- Registry clutter: `nyc-taxi-duration-lgbm` has about 19 versions, one `@champion`, plus `RUNNING` runs left by the killed vhs recordings.
 - Stretch (parked): mount `~/.aws` read-only with `AWS_PROFILE` so boto3 refreshes SSO credentials itself; raise the 60 s wait in `prefect-up`.
-- LinkedIn post (Kevin).
 
 **Next step**
-- Merge the PR once CI is green, record the GIF with ScreenToGif (run `make down && make up` first), add it to the README, then publish and post.
+- Week 1 is closed: all four "Done when" boxes are true on `main`. Before Week 2, pick from Open: the registry clutter, the stranger path, and the credential expiry (mount `~/.aws`).
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
