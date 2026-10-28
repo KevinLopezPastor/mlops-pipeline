@@ -10,7 +10,7 @@ PREFECT_URL := http://127.0.0.1:4200
 # SQLite server that times out on a cold start.
 export PREFECT_API_URL := $(PREFECT_URL)/api
 
-.PHONY: up down pipeline reproduce smoke prefect-up prefect-down test lint
+.PHONY: up down pipeline reproduce demo smoke prefect-up prefect-down test lint
 
 up:
 	$(AWS_LOG) && $(AWS_ENV) && docker compose up -d --build
@@ -31,6 +31,20 @@ pipeline: prefect-up
 reproduce: prefect-up
 	uv run dvc pull
 	uv run python -m flows.training_flow
+
+# The 1-minute demo, in three beats. Needs `make up`, a fresh SSO session and a clean git tree.
+# 1. A bad file is rejected at the Pandera gate. 2. The real data trains and registers. 3. The lineage tags.
+demo: prefect-up
+	@test -z "$$(git status --porcelain)" || { echo "Working tree is not clean: lineage.git_dirty would be True."; exit 1; }
+	@echo "== 1/3  Bad data (20% negative durations) must stop at the gate =="
+	@bad=$$(mktemp -d) && uv run python scripts/make_bad_sample.py $$bad && \
+		if RAW_DIR=$$bad uv run python -m flows.training_flow; then \
+			echo "UNEXPECTED: the gate let bad data through"; rm -rf $$bad; exit 1; \
+		else echo "Rejected at the gate, nothing reached training."; rm -rf $$bad; fi
+	@echo "== 2/3  Real data: dvc pull, train, evaluate, register =="
+	@$(MAKE) --no-print-directory reproduce
+	@echo "== 3/3  Lineage of that run =="
+	@uv run python scripts/show_lineage.py
 
 # The flow without DVC, for CI: RAW_DIR and MLFLOW_TRACKING_URI come from the environment.
 # -m, not a script path: it puts the repo root on sys.path, which `schemas` (imported by validate) needs.
