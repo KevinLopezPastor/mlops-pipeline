@@ -2,16 +2,19 @@
 
 ## Done when
 
-- [ ] `make pipeline` on a clean clone registers a model with the same metrics
+- [x] `make pipeline` on a clean clone registers a model with the same metrics
+  (2026-10-28, fresh `git clone` in `/tmp/clean-clone`, `dvc pull`: MAE 5.4802, RMSE capped 6.9655, RMSE raw 31.0753. `make pipeline` skips there because
+  `dvc.lock` is satisfied, so the clone path is `make reproduce`, which always runs the flow. The path for a stranger with their own bucket is untested)
 - [x] MLflow run tagged with the DVC data hash and git commit
-  (clean-commit run `198b9c9a7b634eac878ab06546697379`: `lineage.git_commit` `e8b9856`, which no longer exists after the 2026-10-27 history rewrite
-  (now `9f8ad9b`); redo the run from a clean commit before ticking for good. `lineage.git_dirty` `False`, `lineage.dvc_data_hash` set; re-check with
-  `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=198b9c9a7b634eac878ab06546697379" | grep -o '"lineage[^}]*'`)
+  (2026-10-28, run `ea83057131704d3e9fe6e2302f5c843b` from a clean commit: `lineage.git_commit` `a1e32d2`, `lineage.git_dirty` `False`,
+  `lineage.dvc_data_hash` `1e82f1da…dir`; MAE 5.4802, same as the baseline. The older run `198b9c9a…` carries a dead SHA.
+  A first `--force` run (`b2e6d44f…`) had `git_dirty` `True`: `dvc repro --force` rewrote `data/raw.dvc` before the flow started; `git checkout data/raw.dvc` fixed it)
 - [x] Bad data fails at the Pandera gate
   (`tests/test_gate_e2e.py`: a Parquet file with 20% negative durations passes `ingest` and is rejected by `validate`; 1% bad rows are dropped;
   `tests/test_validate.py` covers the missing column)
-- [ ] CI green, archify PNG in the README
-  (CI is green on `main` since 2026-10-27, run `40577558675`; `docs/architecture.png` exists, the README does not show it yet)
+- [x] CI green, archify PNG in the README
+  (CI is green on `main` since 2026-10-27, run `40577558675`; the README shows `docs/architecture.png` at the top since 2026-10-28.
+  Confirm CI on the Sunday PR before the final tick. The PNG is a page screenshot with the toolbar and cut-off cards; the viewer's Export gives a cleaner one)
 
 ## Stretch ideas (parked)
 
@@ -23,6 +26,47 @@
   chases it while the registry compares on MAE. Try after the baseline is registered.
 
 ## Sessions
+
+### 2026-10-28: Sun block (AWS Deployment fixed, lineage run, clean-clone proof, README, `make demo`); no demo GIF
+
+**Done** (branch `week-01-mlflow-stack`, last commit `1640143`; PR to `main` opened after this entry)
+- `AWS Deployment` fixed: the role `GitHubActionsDeployRole` trusted the old repo. The repo uses immutable subjects (`use_immutable_subject`), so the claim is
+  `repo:KevinLopezPastor@137914994/mlops-pipeline@1436065944:ref:refs/heads/main`. [infra/github_oidc.tf](../../infra/github_oidc.tf) imports the role and the OIDC provider
+  and pins that exact claim with `StringEquals`; the workflow authenticates as `GitHubActions`.
+- Lineage box ticked for good: run `ea83057131704d3e9fe6e2302f5c843b` (`lineage.git_commit` `a1e32d2`, `git_dirty` `False`, data hash `1e82f1da…dir`, MAE 5.4802).
+  The first attempt (`b2e6d44f…`) had `git_dirty` `True` because `dvc repro --force` rewrote `data/raw.dvc` before the flow started.
+- Clean-clone proof in `/tmp/clean-clone`: `make pipeline` skipped (the stage matches `dvc.lock`), so I added `make reproduce` (`dvc pull`, then the flow, no skip, no rewrite
+  of `data/raw.dvc`). Metrics identical: MAE 5.4802, RMSE capped 6.9655, RMSE raw 31.0753.
+- [README.md](../../README.md): architecture PNG, CI badge, tasks, gate outcomes, MAE decision, lineage tags, quick start, command table, credential-expiry note.
+- `make demo` ([Makefile](../../Makefile), [scripts/make_bad_sample.py](../../scripts/make_bad_sample.py), [scripts/show_lineage.py](../../scripts/show_lineage.py)):
+  gate rejection on a 20% bad copy of the 1% sample, then `make reproduce` on the full data, then the lineage tags. Beat 1 prints one line and only claims "rejected at the gate" if
+  the log contains `exceeds allowed fraction`. Ran green end to end.
+
+**Who wrote what**
+- Kevin: chose Terraform for the role, option B (`make reproduce`), full data and AWS for the demo, gate beat first, the 1% sample for the bad file, and the fallback decision.
+- Claude scaffolded: `github_oidc.tf`, `make reproduce` and `make demo`, the two scripts, the README (written in full at Kevin's request), this log.
+
+**Lessons**
+- A trust policy for GitHub OIDC must match the claim the repo emits. With immutable subjects the claim holds numeric owner and repo IDs, so a new repo never matches an old policy.
+  Read the claim from `gh api repos/OWNER/REPO/actions/oidc/customization/sub`.
+- `dvc repro` skips an unchanged stage, so a fresh clone with a committed `dvc.lock` registers nothing. `--force` also rewrites `data/raw.dvc` first, which makes `git_dirty` `True`.
+- A failed flow leaves a `FAILED` run in MLflow; "latest run" scripts must filter on `FINISHED`.
+- Injected SSO credentials expire after about an hour. The MLflow server then fails the model upload with `ExpiredToken` and the client retries, so the flow looks frozen at `log_model`.
+  `docker compose logs` needs the AWS variables; `docker logs <container>` does not.
+- vhs needs ttyd 1.7.2 or newer and, in WSL, `libnss3` for its downloaded Chromium. The recording stalled twice at `log_model` inside vhs; the cause is not found (the first stall was expired credentials).
+
+**Open**
+- Demo GIF not recorded (vhs stalls at `log_model`; `docs/demo.tape` removed in `1640143`). Fallback: ScreenToGif, then one README line under the PNG.
+- The stranger path (own bucket, `terraform apply`, `download_data.sh`, `dvc push`, `make reproduce`) is untested; re-downloaded TLC files may hash differently from `1e82f1da…`.
+- `dvc pull` prints `M data/raw/ 3 files modified` on every run (data on `/mnt/d`); the hash is unchanged. Probably cosmetic.
+- `github-trust-policy.json` in the repo root is the old policy with the dead repo name; Terraform owns the role now. Delete it.
+- `.dvc/config` names the private bucket (account ID visible in a public repo).
+- Registry clutter: `nyc-taxi-duration-lgbm` has 12+ versions, one `@champion`; the registry story for the demo is not clean.
+- Stretch (parked): mount `~/.aws` read-only with `AWS_PROFILE` so boto3 refreshes SSO credentials itself; raise the 60 s wait in `prefect-up`.
+- LinkedIn post (Kevin).
+
+**Next step**
+- Merge the PR once CI is green, record the GIF with ScreenToGif (run `make down && make up` first), add it to the README, then publish and post.
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
