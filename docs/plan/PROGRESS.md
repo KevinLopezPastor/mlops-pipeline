@@ -11,6 +11,7 @@
   (`tests/test_gate_e2e.py`: a Parquet file with 20% negative durations passes `ingest` and is rejected by `validate`; 1% bad rows are dropped;
   `tests/test_validate.py` covers the missing column)
 - [ ] CI green, archify PNG in the README
+  (CI is green on `main` since 2026-10-27, run `40577558675`; `docs/architecture.png` exists, the README does not show it yet)
 
 ## Stretch ideas (parked)
 
@@ -25,43 +26,58 @@
 
 <!-- /checkpoint adds a new entry here, newest first -->
 
-### 2026-10-27: Sat block in progress (smoke sample, CI workflow); history rewritten for the new repo
+### 2026-10-27: Sat block done (smoke sample, CI green, one DVC stage, architecture diagram); history rewritten for the new repo
 
-**Done** (committed in `1bc139b` and `696f7b9`; this log in the next commit)
-- `make lint` ([Makefile](../../Makefile)): `ruff check .` and `ruff format --check .`; passed on the first run.
+**Done** (in `main` through PR #3, merge commit `fdba3be`; this log is `8c2e7a6` on the branch, not in `main` until a PR is opened)
+- `make lint` ([Makefile](../../Makefile)): `ruff check .` and `ruff format --check .`. Green locally on the first run; red in CI later (see Lessons).
 - [src/taxi/ingest.py](../../src/taxi/ingest.py): `RAW_DIR` env var (default `data/raw`).
 - [scripts/make_smoke_sample.py](../../scripts/make_smoke_sample.py): seeded 1% sample per month into `tests/data/smoke/` (95,547 rows, 2.0 MB, committed).
 - Local smoke run (`RAW_DIR=tests/data/smoke MLFLOW_TRACKING_URI=sqlite:////tmp/smoke_mlflow.db make pipeline`): 59,721 train / 35,823 test rows,
   gate dropped 3 rows, MAE 6.2526, v1 auto-promoted to `@champion`. `mlruns/` added to `.gitignore`.
-- [.github/workflows/ci.yml](../../.github/workflows/ci.yml): `lint`, `test`, then `smoke` (`make pipeline` on the sample, SQLite tracking). Not run on GitHub yet.
-- History rewrite: 8 commits had the corporate email as author and `pyproject.toml` `authors`; all 22 commits now use `kevinlopez.ind@gmail.com`.
-  Every hash changed. New remote `origin` = `KevinLopezPastor/mlops-pipeline`; the old repo is to be deleted.
+- [.github/workflows/ci.yml](../../.github/workflows/ci.yml): `lint`, `test`, then `smoke` (`make smoke` on the sample, SQLite tracking).
+  First green run on PR #3 (run `40576819499`: lint 9 s, test 32 s, smoke 35 s), and green on `main` after the merge (run `40577558675`, 1 m 14 s).
+  The smoke job printed the same numbers as the local run (MAE 6.2526, RMSE capped 9.0614, RMSE raw 28.8327, 3 rows dropped, v1 `@champion`).
+- [dvc.yaml](../../dvc.yaml) and `dvc.lock`: one stage, `training`, wraps the flow (deps `data/raw`, the flow, `src/taxi`, `schemas`; params `validate`, `ingest`, `train`,
+  `evaluate`). `make pipeline` runs `dvc repro`; a second run printed `Stage 'training' didn't change, skipping`. `make smoke` runs the flow without DVC (CI has no `data/raw`).
+  `.dvcignore` skips `__pycache__`. Decision and cost written in "Decisions" in [week-01.md](week-01.md); lineage tags unchanged because `dvc.lock` is written after the run.
+- [docs/architecture.html](../architecture.html) and [docs/architecture.png](../architecture.png): archify diagram with the path of a new data version to `@champion`
+  drawn as thick green arrows. Source links are pinned to `46e8ed6`. The PNG is a page screenshot (toolbar included, cards cut off); the viewer's Export gives a cleaner one.
+- History rewrite: 8 commits had the corporate email as author and in `pyproject.toml` `authors`; all commits now use `kevinlopez.ind@gmail.com`.
+  Every hash changed. `origin` = `KevinLopezPastor/mlops-pipeline`. `.claude/` untracked in a follow-up commit (it stays in older history; no secrets in it).
 
 **Who wrote what**
-- Kevin: the sampling rule (`sample()`, seed 42), the decisions (real 1% sample in git, `RAW_DIR` env var), the rewrite decision.
-- Claude scaffolded: `make lint`, the `RAW_DIR` line, the sampling script skeleton, `ci.yml`, the rewrite (`git filter-branch`), this log.
+- Kevin: the sampling rule (`sample()`, seed 42), the decisions (real 1% sample in git, `RAW_DIR`, rewrite the history, option C with its param groups, lineage tags unchanged),
+  the review of the diagram (the unclear node text and the broken links).
+- Claude scaffolded: `make lint` and `make smoke`, the `RAW_DIR` line, the sampling script skeleton, `ci.yml`, `dvc.yaml` and `.dvcignore`, the diagram, the `filter-branch` rewrite,
+  the decision paragraph in `week-01.md`, this log.
 
 **Lessons**
-- A SQLite tracking URI only holds metadata; artifacts go to `./mlruns` unless the experiment sets `artifact_location`. The location is stored in the
-  `experiments` table at creation.
+- A SQLite tracking URI only holds metadata; artifacts go to `./mlruns` unless the experiment sets `artifact_location`, which is stored in the `experiments` table at creation.
 - A commit hash covers author, parents and content, so changing one email changes every descendant. Lineage tags that store a SHA go stale; rewrite before the first public push.
+- `.gitignore` only affects untracked files. `.claude/` stayed on GitHub until `git rm --cached` removed it; a merged PR is a snapshot, so commits pushed after the merge need a new PR.
 - `git rev-list --all` also walks `refs/remotes/*` and checkpoint refs, so a scan with it is not a check of what a push will send. Push named branches, never `--all`.
-- `sed -i` stripped CRLF from this file (committed with CRLF); restore line endings or the diff shows every line.
-- A 1% sample of real data still had 3 invalid rows, so the smoke run does reach the gate's drop path (not its failure path).
+- `sed -i` in Git Bash stripped CRLF from this file; restore line endings or the diff shows every line.
+- Windows `uv` on the WSL-built `.venv` fails with "Access is denied" while rebuilding it. Run `uv` from WSL only.
+- CI caught what local lint could not: `scripts/make_smoke_sample.py` was added after the last `make lint` and had trailing whitespace and no final newline. Run `make lint && make test` before every push.
+- A 1% sample of real data still had 3 invalid rows, so the smoke run reaches the gate's drop path (not its failure path, which the tests cover).
+- Archify pins every source link to a commit; a commit that is not on GitHub gives a 404 that looks like a wrong repo. Push before sharing the diagram. `meta.views` is retired in archify 3.2,
+  so a highlighted path is authored with edge variants and a card.
+- DVC re-runs the stage only for the param groups listed in `dvc.yaml`; `register.*` is left out, so changing it needs `make pipeline ARGS=--force`.
 
 **Open**
-- Hash map old to new (for older entries below): `3b34154` to `ac61fbd`, `4ec17d0` to `010e259`, `44c528b` to `5e710c8`, `7620afc` to `cf9174c`,
-  `dc64923` to `c792665`, `887799e` to `9982d94`, `9ee22b6` to `0077294`, `6213abc` to `8fda985`, `e8b9856` to `9f8ad9b`. Entries below use the new hashes.
-- Redo `make pipeline` from a clean commit (lineage run `198b9c9a…` carries a dead SHA) and update the run id above.
-- Push to the new repo, open a PR so CI triggers (the workflow only runs on push to `main` and on PRs), and confirm green.
-- `.github/workflows/deploy.yml` (OIDC, `sts get-caller-identity`, not in the plan): keep or park it. Its role may trust only the old repo's `main`;
-  the role's trust policy (not in `infra/*.tf`) is scoped to the old repo, so check it before the new repo uses it.
-- `dvc.yaml`: does `dvc repro` own any stage, or does Prefect own all of them? Decide before the archify diagram.
-- Delete the old GitHub repo (`delete_repo` scope missing in `gh`; web UI works), then the local `backup-before-rewrite` branch (already gone) and `refs/original`.
+- `AWS Deployment` (`.github/workflows/deploy.yml`, OIDC, not in the plan) fails on every push to `main` since the first merge (latest `40577558486`). Probably the role's trust policy
+  names the old repo; read the log (`gh run view 40577558486 --log-failed`), then fix the trust policy or remove the workflow.
+- Record the run id of the first `dvc repro` run and check its tags (`lineage.git_commit` should be `be72c2f`, `lineage.git_dirty` `False`); the old run `198b9c9a…` carries a dead SHA.
+- Old GitHub repo `KevinLopezPastor/mlops-reproducible-pipeline`: confirm it is deleted (`delete_repo` scope missing in `gh`; the web UI works), then `refs/original` and the checkpoint refs are local only.
+- Hash map old to new, for the older entries below (they use the new hashes): `3b34154` to `ac61fbd`, `4ec17d0` to `010e259`, `44c528b` to `5e710c8`, `7620afc` to `cf9174c`,
+  `dc64923` to `c792665`, `887799e` to `9982d94`, `9ee22b6` to `0077294`, `6213abc` to `8fda985`, `e8b9856` to `9f8ad9b`.
+- `make demo` does not exist yet (CLAUDE.md lists it); the clean-clone box needs `dvc pull` and an AWS profile in a second directory.
+- Registry clutter: `nyc-taxi-duration-lgbm` v1 (failed run, no alias), v3, v4 (rejected), plus the Monday smoke models; `.env.example` `PREFECT_API_URL` line is redundant.
+- Parked ideas: a pre-push hook for `make lint && make test`; `astral-sh/setup-uv@v6` warns about Node 20 (check for v7); the PNG for the README from the viewer's Export.
 
 **Next step**
-- Push, open the PR, get CI green. Then the archify diagram (`docs/architecture.html`, plus the follow-up prompt from the plan), after the `dvc.yaml` decision.
-
+- Sun block: prove the clean clone (fresh directory, `git clone`, `dvc pull`, `make up`, `make pipeline`; compare the metrics), then the README with the archify PNG at the top,
+  a `make demo` target and the demo GIF, publish and the LinkedIn post. Resolve the `AWS Deployment` question first, because a red badge on the README undoes the green CI.
 ### 2026-10-26: Fri block done (`register`, flow wiring, pytest for every task)
 
 **Done** (committed in `9f8ad9b`)
