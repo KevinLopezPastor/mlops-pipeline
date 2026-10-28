@@ -28,7 +28,7 @@
 
 ### 2026-10-27: Sat block done (smoke sample, CI green, one DVC stage, architecture diagram); history rewritten for the new repo
 
-**Done** (merged to `main` in PR #3, merge commit `fdba3be`)
+**Done** (in `main` through PR #3, merge commit `fdba3be`; this log is `8c2e7a6` on the branch, not in `main` until a PR is opened)
 - `make lint` ([Makefile](../../Makefile)): `ruff check .` and `ruff format --check .`. Green locally on the first run; red in CI later (see Lessons).
 - [src/taxi/ingest.py](../../src/taxi/ingest.py): `RAW_DIR` env var (default `data/raw`).
 - [scripts/make_smoke_sample.py](../../scripts/make_smoke_sample.py): seeded 1% sample per month into `tests/data/smoke/` (95,547 rows, 2.0 MB, committed).
