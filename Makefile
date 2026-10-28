@@ -10,7 +10,7 @@ PREFECT_URL := http://127.0.0.1:4200
 # SQLite server that times out on a cold start.
 export PREFECT_API_URL := $(PREFECT_URL)/api
 
-.PHONY: up down pipeline smoke prefect-up prefect-down test lint
+.PHONY: up down pipeline reproduce smoke prefect-up prefect-down test lint
 
 up:
 	$(AWS_LOG) && $(AWS_ENV) && docker compose up -d --build
@@ -24,6 +24,13 @@ down:
 # DVC skips an unchanged stage; `make pipeline ARGS=--force` re-runs it.
 pipeline: prefect-up
 	uv run dvc repro $(ARGS)
+
+# For a fresh clone: pull the data version pinned in data/raw.dvc, then always run the flow and register a
+# model. Unlike `pipeline`, it never skips on dvc.lock and never rewrites data/raw.dvc, so git_dirty stays False.
+# Needs `make up` and an AWS profile for the DVC remote (`aws sso login --profile ml-roadmap`).
+reproduce: prefect-up
+	uv run dvc pull
+	uv run python -m flows.training_flow
 
 # The flow without DVC, for CI: RAW_DIR and MLFLOW_TRACKING_URI come from the environment.
 # -m, not a script path: it puts the repo root on sys.path, which `schemas` (imported by validate) needs.
