@@ -4,9 +4,9 @@
 
 - [ ] `make pipeline` on a clean clone registers a model with the same metrics
 - [x] MLflow run tagged with the DVC data hash and git commit
-  (clean-commit run `198b9c9a7b634eac878ab06546697379`: `lineage.git_commit` `e8b9856`, which no longer exists after the 2026-10-27 history rewrite
-  (now `9f8ad9b`); redo the run from a clean commit before ticking for good. `lineage.git_dirty` `False`, `lineage.dvc_data_hash` set; re-check with
-  `curl -s "http://localhost:5000/api/2.0/mlflow/runs/get?run_id=198b9c9a7b634eac878ab06546697379" | grep -o '"lineage[^}]*'`)
+  (2026-10-28, run `ea83057131704d3e9fe6e2302f5c843b` from a clean commit: `lineage.git_commit` `a1e32d2`, `lineage.git_dirty` `False`,
+  `lineage.dvc_data_hash` `1e82f1da…dir`; MAE 5.4802, same as the baseline. The older run `198b9c9a…` carries a dead SHA.
+  A first `--force` run (`b2e6d44f…`) had `git_dirty` `True`: `dvc repro --force` rewrote `data/raw.dvc` before the flow started; `git checkout data/raw.dvc` fixed it)
 - [x] Bad data fails at the Pandera gate
   (`tests/test_gate_e2e.py`: a Parquet file with 20% negative durations passes `ingest` and is rejected by `validate`; 1% bad rows are dropped;
   `tests/test_validate.py` covers the missing column)
