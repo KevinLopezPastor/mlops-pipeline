@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/KevinLopezPastor/mlops-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/KevinLopezPastor/mlops-pipeline/actions/workflows/ci.yml)
 
+![make demo: a bad file is rejected at the gate, the full data trains and registers, the lineage tags are printed](docs/demo.gif)
+
 A training pipeline where every registered model traces back to the exact data version and git commit that produced it.
 It predicts NYC yellow taxi trip duration (TLC trip records, Jan to Mar 2024) with LightGBM.
 Data is versioned with DVC, the steps run as a Prefect 3 flow, a Pandera schema gates bad data before training,

@@ -56,7 +56,8 @@
 - vhs needs ttyd 1.7.2 or newer and, in WSL, `libnss3` for its downloaded Chromium. The recording stalled twice at `log_model` inside vhs; the cause is not found (the first stall was expired credentials).
 
 **Open**
-- Demo GIF not recorded (vhs stalls at `log_model`; `docs/demo.tape` removed in `1640143`). Fallback: ScreenToGif, then one README line under the PNG.
+- Demo GIF: recorded by hand with ScreenToGif (`docs/demo.gif`, 1.2 MB) and linked under the PNG. vhs stalled at the start of `log_model` in six attempts, with and without
+  `MLFLOW_UV_AUTO_DETECT=false`, with fresh credentials and a 540 s wait; the cause was not found. The same demo passes in a normal terminal.
 - The stranger path (own bucket, `terraform apply`, `download_data.sh`, `dvc push`, `make reproduce`) is untested; re-downloaded TLC files may hash differently from `1e82f1da…`.
 - `dvc pull` prints `M data/raw/ 3 files modified` on every run (data on `/mnt/d`); the hash is unchanged. Probably cosmetic.
 - `github-trust-policy.json` in the repo root is the old policy with the dead repo name; Terraform owns the role now. Delete it.
