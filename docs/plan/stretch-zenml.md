@@ -29,6 +29,12 @@ Not verified (check in Step 0, do not assume):
 - A two-step pipeline passed a pandas 3.1 DataFrame (`int64`, `datetime64[us]`, nullable `Int32`) through the artifact store with dtypes intact. Steps expose `.entrypoint`.
 - Still open: MLflow run scope, process model, peak memory, cache rules.
 
+**Step 5 finding (2026-10-29, `make smoke`, 1% sample):** the pipeline runs end to end, but MAE is 7.2438, not 6.2526. Row counts match (3 dropped, 59,721 / 35,823).
+Cause (verified): the same steps called in-process give 6.2526; the `features` artifact loaded back from the ZenML store has lost its `CategoricalDtype` columns
+(`PULocationID`, `DOLocationID` come back `int64`, `VendorID` `int32`, `RatecodeID` `float64`), so LightGBM trains on numbers instead of categories.
+The default pandas materializer does not preserve categorical dtypes. Wall time on the sample: 3 m 05 s (`ingest` 28 s, `validate` 18 s, `features` 17 s, `train` 50 s, `track` 31 s), against about 35 s in CI on Prefect;
+not yet separated from WSL `/mnt/d` disk speed.
+
 ## Mapping, from this repo to ZenML
 
 | Today (Prefect) | On the branch (ZenML) | Notes |

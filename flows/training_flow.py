@@ -57,11 +57,13 @@ def track(model: lgb.LGBMRegressor, metrics: dict[str, float]) -> str:
 @pipeline(enable_cache=False)
 def training_pipeline() -> None:
     """ingest -> validate -> features -> train -> evaluate -> track -> register."""
-    # TODO(human): call the steps in order and pass each output to the next one.
-    #   - `train` returns three outputs: unpack them (model, X_test, y_test) like the Prefect flow did.
-    #   - `track` needs the model and the metrics, and its output is the `model_uri` that `register` takes.
-    #   - A pipeline body is not run with real data: do not use the values for anything but passing them on.
-    raise NotImplementedError
+    df = ingest()
+    df = validate(df)
+    df = features(df)
+    model, X_test, y_test = train(df)
+    metrics = evaluate(model, X_test, y_test)
+    model_uri = track(model, metrics)
+    register(model_uri=model_uri, metrics=metrics)
 
 
 def main() -> None:
@@ -80,11 +82,11 @@ def main() -> None:
         # Log params.yaml flattened (e.g. train.lgbm.n_estimators)
         mlflow.log_params(_flatten_dict(load_params()))
 
-        training_pipeline()
+        run = training_pipeline()
 
-        # TODO(human): set the run tag `promoted` from `register`'s return value, inside this `with`.
-        #   Hint: calling a pipeline returns a handle to the run; the docs (Fetch runs and artifacts) show how to
-        #   load a step's output from it. Check the attribute names in the installed version (0.98.0).
+        # Record the outcome inside the with block so it is attached while the run is active
+        is_promoted = run.steps["register"].output.load()
+        mlflow.set_tag("promoted", str(is_promoted))
 
 
 if __name__ == "__main__":
