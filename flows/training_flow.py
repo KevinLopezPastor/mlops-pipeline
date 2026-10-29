@@ -1,11 +1,11 @@
-"""Prefect flow wiring the tasks inside one MLflow run."""
+"""ZenML pipeline wiring the steps inside one MLflow run."""
 
-import logging
 import os
 from typing import Any
 
+import lightgbm as lgb
 import mlflow
-from prefect import flow
+from zenml import pipeline, step
 
 from taxi.evaluate import PRIMARY_METRIC, evaluate
 from taxi.features import features
@@ -18,9 +18,6 @@ from taxi.validate import validate
 
 TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
 EXPERIMENT = "nyc-taxi-duration"
-
-# PREFECT_LOGGING_EXTRA_LOGGERS gives `taxi` Prefect's handlers but no level, so INFO is dropped by default.
-logging.getLogger("taxi").setLevel(logging.INFO)
 
 
 def _flatten_dict(
@@ -40,16 +37,38 @@ def _flatten_dict(
     return dict(items)
 
 
-@flow
-def training_flow() -> dict[str, Any]:
-    """ingest -> validate -> features -> train -> evaluate -> register."""
+@step
+def track(model: lgb.LGBMRegressor, metrics: dict[str, float]) -> str:
+    """Log metrics and the model to the active MLflow run; return the model URI for `register`.
+
+    A pipeline body only wires steps, so this logging cannot sit between them as it did in the
+    Prefect flow. The local orchestrator runs steps in this process, so the run opened in `main`
+    is the active one here.
+    """
+    # PRIMARY_METRIC ("mae") determines model quality for register
+    mlflow.log_metrics(metrics)
+    # MLflow 3 signature: name= instead of artifact_path=
+    model_info = mlflow.lightgbm.log_model(lgb_model=model, name="model")
+    return model_info.model_uri
+
+
+# Caching is off until Step 9: the cache key covers code and step inputs, not the contents of data/raw,
+# so a cached `ingest` could return stale data.
+@pipeline(enable_cache=False)
+def training_pipeline() -> None:
+    """ingest -> validate -> features -> train -> evaluate -> track -> register."""
+    # TODO(human): call the steps in order and pass each output to the next one.
+    #   - `train` returns three outputs: unpack them (model, X_test, y_test) like the Prefect flow did.
+    #   - `track` needs the model and the metrics, and its output is the `model_uri` that `register` takes.
+    #   - A pipeline body is not run with real data: do not use the values for anything but passing them on.
+    raise NotImplementedError
+
+
+def main() -> None:
     mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT)
 
-    # Tasks are called directly, not .submit(): MLflow's active run is per thread, so a task
-    # moved to another thread would log to no run at all.
     with mlflow.start_run():
-        # Tag the run with lineage tracking
         mlflow.set_tags(
             {
                 "lineage.dvc_data_hash": dvc_data_hash(),
@@ -59,36 +78,14 @@ def training_flow() -> dict[str, Any]:
             }
         )
         # Log params.yaml flattened (e.g. train.lgbm.n_estimators)
-        raw_params = load_params()
-        flat_params = _flatten_dict(raw_params)
-        mlflow.log_params(flat_params)
+        mlflow.log_params(_flatten_dict(load_params()))
 
-        df = ingest()
-        df = validate(df)
-        df = features(df)
-        model, X_test, y_test = train(df)
-        metrics = evaluate(model, X_test, y_test)
+        training_pipeline()
 
-        # Log metrics to MLflow; PRIMARY_METRIC ("mae") determines model quality for register
-        mlflow.log_metrics(metrics)
-
-        # 1. Log model using MLflow 3 signature (name= instead of artifact_path=)
-        model_info = mlflow.lightgbm.log_model(
-            lgb_model=model,
-            name="model",
-        )
-
-        # 2. Register model and evaluate champion promotion against previous runs
-        is_promoted = register(model_uri=model_info.model_uri, metrics=metrics)
-
-        # 3. Record outcome inside the with block so it is attached while the run is active
-        mlflow.set_tag("promoted", str(is_promoted))
-
-    return {
-        "metrics": metrics,
-        "is_promoted": is_promoted,
-    }
+        # TODO(human): set the run tag `promoted` from `register`'s return value, inside this `with`.
+        #   Hint: calling a pipeline returns a handle to the run; the docs (Fetch runs and artifacts) show how to
+        #   load a step's output from it. Check the attribute names in the installed version (0.98.0).
 
 
 if __name__ == "__main__":
-    training_flow()
+    main()

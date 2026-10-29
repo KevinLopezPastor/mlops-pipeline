@@ -51,7 +51,7 @@ demo: prefect-up
 
 # The flow without DVC, for CI: RAW_DIR and MLFLOW_TRACKING_URI come from the environment.
 # -m, not a script path: it puts the repo root on sys.path, which `schemas` (imported by validate) needs.
-smoke: prefect-up
+smoke:
 	uv run python -m flows.training_flow
 
 # Idempotent: starts a detached local Prefect server only if nothing answers on the health endpoint.
