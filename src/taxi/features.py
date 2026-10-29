@@ -3,7 +3,7 @@
 import logging
 
 import pandas as pd
-from prefect import task
+from zenml import step
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ ZONE_CATEGORICAL_DTYPE = pd.CategoricalDtype(
 )
 
 
-@task
+@step
 def features(df: pd.DataFrame) -> pd.DataFrame:
     """Turn the validated trips into model inputs; keep TARGET so train can split on time."""
     # 1. Fast-fail structural checks on critical coordinates

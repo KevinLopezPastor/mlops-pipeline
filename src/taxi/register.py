@@ -4,7 +4,7 @@ import logging
 
 import mlflow
 from mlflow import MlflowClient
-from prefect import task
+from zenml import step
 
 from .params import load_params
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 CHAMPION_ALIAS = "champion"
 
 
-@task
+@step
 def register(model_uri: str, metrics: dict[str, float]) -> bool:
     """Register the logged model as a new version; move @champion to it only if it wins.
 

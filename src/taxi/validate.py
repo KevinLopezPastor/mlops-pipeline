@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 import pandera.pandas as pa
-from prefect import task
+from zenml import step
 
 from schemas.trips import trips_schema
 
@@ -13,7 +13,7 @@ from .params import load_params
 logger = logging.getLogger(__name__)
 
 
-@task
+@step
 def validate(df: pd.DataFrame) -> pd.DataFrame:
     """Gate: validate df against trips_schema; drop invalid rows if under 5%, otherwise fail."""
     try:

@@ -5,8 +5,8 @@ import logging
 
 import pandas as pd
 from lightgbm import LGBMRegressor
-from prefect import task
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+from zenml import step
 
 from .params import load_params
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 PRIMARY_METRIC = "mae"
 
 
-@task
+@step
 def evaluate(
     model: LGBMRegressor, X_test: pd.DataFrame, y_test: pd.Series
 ) -> dict[str, float]:

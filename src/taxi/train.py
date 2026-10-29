@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 from lightgbm import LGBMRegressor
-from prefect import task
+from zenml import step
 
 from .features import TARGET
 from .params import load_params
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 TIMESTAMP = "tpep_pickup_datetime"
 
 
-@task
+@step
 def train(df: pd.DataFrame) -> tuple[LGBMRegressor, pd.DataFrame, pd.Series]:
     """Split by pickup time, fit LightGBM on the early part, return the model and the held-out X, y."""
     params = load_params()["train"]

@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
-from prefect import task
+from zenml import step
 
 from .params import load_params
 
@@ -17,7 +17,7 @@ PICKUP = "tpep_pickup_datetime"
 DROPOFF = "tpep_dropoff_datetime"
 
 
-@task
+@step
 def ingest(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
     """Read the yellow taxi Parquet files and return one DataFrame with the target column."""
     logger.info("Scanning for yellow taxi Parquet files in: %s", raw_dir)
