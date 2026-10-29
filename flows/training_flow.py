@@ -7,6 +7,7 @@ import lightgbm as lgb
 import mlflow
 from zenml import pipeline, step
 
+import flows.materializers  # noqa: F401  (importing it registers the DataFrame materializer)
 from taxi.evaluate import PRIMARY_METRIC, evaluate
 from taxi.features import features
 from taxi.ingest import ingest
