@@ -22,3 +22,6 @@ CLAUDE.md
 
 # Jupyter Notebook
 notebooks/
+
+# ZenML local repo config
+.zen/
