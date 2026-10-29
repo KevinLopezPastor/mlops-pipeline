@@ -13,10 +13,10 @@ dependencies = [
     "mlflow==3.17.2",
     "pandas>=3.0.6",
     "pandera>=0.34.1",
-    "prefect>=3.9.0",
     "pyyaml>=6.0.3",
     "requests>=2.34.2",
     "scikit-learn>=1.9.1",
+    "zenml[local]>=0.98.0",
 ]
 
 [tool.uv.build-backend]
