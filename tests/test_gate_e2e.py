@@ -33,20 +33,20 @@ def test_bad_file_fails_at_the_gate(tmp_path):
     write_trips(tmp_path, rows=200, bad_rows=40)
 
     # 2. Ingest is a pure data reader; it must not clean data or raise validation errors.
-    df = ingest.fn(tmp_path)
+    df = ingest.entrypoint(tmp_path)
     # ingest drops the dropoff time after computing the target, so the bad trips show up in duration_min.
     assert (df["duration_min"] < 0).sum() == 40
 
     # 3. Validation gate must raise ValueError when bad row fraction exceeds threshold (20% >= 5%).
     with pytest.raises(ValueError, match="exceeds allowed fraction"):
-        validate.fn(df)
+        validate.entrypoint(df)
 
     # 4. Contrast case: minor invalid fraction (2 bad rows out of 200 = 1% < 5%) passes gate with bad rows removed.
     # Own directory, so this case does not depend on the file written above.
     small = tmp_path / "small"
     small.mkdir()
     write_trips(small, rows=200, bad_rows=2)
-    df_cleaned = validate.fn(ingest.fn(small))
+    df_cleaned = validate.entrypoint(ingest.entrypoint(small))
 
     assert len(df_cleaned) == 198
     assert df_cleaned["duration_min"].min() >= 0

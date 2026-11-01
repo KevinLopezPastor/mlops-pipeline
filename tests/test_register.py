@@ -67,7 +67,7 @@ def test_first_model_becomes_champion(make_model_uri, set_register_params):
     """Worked example: the first registered model is promoted and tagged."""
     set_register_params()
 
-    promoted = register.fn(make_model_uri(), {"mae": 5.0})
+    promoted = register.entrypoint(make_model_uri(), {"mae": 5.0})
 
     champion = MlflowClient().get_model_version_by_alias(MODEL_NAME, "champion")
     assert promoted is True
@@ -81,7 +81,7 @@ def test_first_model_not_promoted_when_auto_promote_disabled(
     """When auto_promote_first=False, the first model is registered but no champion alias is set."""
     set_register_params(auto_promote_first=False)
 
-    promoted = register.fn(make_model_uri(), {"mae": 5.0})
+    promoted = register.entrypoint(make_model_uri(), {"mae": 5.0})
 
     client = MlflowClient()
     reg_model = client.get_registered_model(MODEL_NAME)
@@ -95,9 +95,9 @@ def test_challenger_promoted_when_beating_margin(make_model_uri, set_register_pa
     uri = make_model_uri()
 
     # Seed initial champion (version 1 with MAE 5.0; required threshold for v2: < 4.95)
-    register.fn(uri, {"mae": 5.0})
+    register.entrypoint(uri, {"mae": 5.0})
 
-    promoted = register.fn(uri, {"mae": 4.5})
+    promoted = register.entrypoint(uri, {"mae": 4.5})
 
     champion = MlflowClient().get_model_version_by_alias(MODEL_NAME, "champion")
     assert promoted is True
@@ -113,15 +113,15 @@ def test_challenger_rejected_when_within_or_at_margin_boundary(
     uri = make_model_uri()
 
     # Seed champion (version 1 with MAE 10.0; threshold is strictly < 9.9)
-    register.fn(uri, {"mae": 10.0})
+    register.entrypoint(uri, {"mae": 10.0})
 
     # Equal MAE loses
-    promoted_equal = register.fn(uri, {"mae": 10.0})
+    promoted_equal = register.entrypoint(uri, {"mae": 10.0})
     assert promoted_equal is False
 
     # Exact threshold boundary loses due to strict inequality (<); same expression as register.py, so no float luck
     threshold = 10.0 * (1.0 - 0.01)
-    promoted_exact_boundary = register.fn(uri, {"mae": threshold})
+    promoted_exact_boundary = register.entrypoint(uri, {"mae": threshold})
     assert promoted_exact_boundary is False
 
     champion = MlflowClient().get_model_version_by_alias(MODEL_NAME, "champion")
@@ -135,14 +135,14 @@ def test_missing_mae_tag_on_champion_raises_value_error(
     set_register_params()
     uri = make_model_uri()
 
-    register.fn(uri, {"mae": 5.0})
+    register.entrypoint(uri, {"mae": 5.0})
 
     # Simulate missing tag state on champion
     client = MlflowClient()
     client.delete_model_version_tag(MODEL_NAME, version="1", key="mae")
 
     with pytest.raises(ValueError, match="missing the required metric tag 'mae'"):
-        register.fn(uri, {"mae": 4.0})
+        register.entrypoint(uri, {"mae": 4.0})
 
 
 def test_missing_primary_metric_raises_key_error_without_registering(
@@ -152,7 +152,7 @@ def test_missing_primary_metric_raises_key_error_without_registering(
     set_register_params(primary_metric="mae")
 
     with pytest.raises(KeyError, match="Primary metric 'mae' not found"):
-        register.fn(make_model_uri(), {"rmse_raw": 10.0})
+        register.entrypoint(make_model_uri(), {"rmse_raw": 10.0})
 
     # Nothing was registered, not even an empty registered model.
     assert list(MlflowClient().search_registered_models()) == []

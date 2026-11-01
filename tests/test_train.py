@@ -35,4 +35,4 @@ def test_empty_split_raises(offset_days: list[int]) -> None:
     )
 
     with pytest.raises(ValueError, match=rf"Empty split on cutoff_date={cutoff_str}"):
-        train.fn(df)
+        train.entrypoint(df)
