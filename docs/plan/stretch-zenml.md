@@ -77,13 +77,13 @@ the `zenml init` and Makefile targets, and the test edits.
 
 | Measure | Prefect (main) | ZenML (branch) |
 | --- | --- | --- |
-| Lines changed in `src/taxi` (excluding the decorator swap) | 0 | |
-| `make smoke` wall time (1% sample) | about 35 s in CI | |
-| Full-data wall time | about 50 to 60 s | |
-| Peak memory, full data | 3.1 GB (in `validate`) | |
+| Lines changed in `src/taxi` (excluding the decorator swap) | 0 | 0 (new: `flows/materializers.py`, 56 lines, and a `track` step in the flow) |
+| `make smoke` wall time (1% sample) | about 35 s in CI | 3 m 14 s (pipeline 2 m 16 s), WSL |
+| Full-data wall time | about 50 to 60 s | 3 m 01 s (pipeline 2 m 25 s: ingest 14 s, validate 16 s, features 13 s, train 1 m 13 s, evaluate 5 s, track 21 s, register 1 s) |
+| Peak memory, full data | 3.1 GB (in `validate`) | 2.79 GB (`/usr/bin/time -v`, whole process); swap unused afterwards |
 | New concepts you had to learn | | |
-| What a bad-data failure looks like in the UI or CLI | | |
-| Same metrics (MAE 5.4802) | yes | |
+| What a bad-data failure looks like in the UI or CLI | Prefect UI / log | Same gate message; run shown as failed in `zenml pipeline runs list` with `ingest` completed, `validate` failed, later steps absent; long traceback ending in `RuntimeError: Pipeline run has failed due to failure in step(s): validate` |
+| Same metrics (MAE 5.4802) | yes | yes after the custom materializer (5.4802 / 6.9655 / 31.0753, 225 rows dropped); 7.2438 on the sample without it |
 
 ## The half page (write after Step 9, about 300 words)
 
