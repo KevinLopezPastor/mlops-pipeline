@@ -35,6 +35,16 @@ Cause (verified): the same steps called in-process give 6.2526; the `features` a
 The default pandas materializer does not preserve categorical dtypes. Wall time on the sample: 3 m 05 s (`ingest` 28 s, `validate` 18 s, `features` 17 s, `train` 50 s, `track` 31 s), against about 35 s in CI on Prefect;
 not yet separated from WSL `/mnt/d` disk speed.
 
+**Step 9 result (2026-11-01, smoke sample copied to `/tmp`, `enable_cache=True` set temporarily, four runs):**
+- Run 1 (cold) executed `ingest` to `evaluate`, but `track` and `register` were cached: their inputs (the LightGBM model and the metrics) were content-identical to an earlier run, so ZenML reused that run's outputs.
+  The new MLflow run was `FINISHED` with 0 metrics, no logged model and no registry version, yet tagged `promoted=True` (replayed from the cached `register`).
+- Run 2 (identical): all 7 steps cached, 32 s wall time. That is the fixed startup cost of a run with nothing to execute (imports, ZenML run bookkeeping, lineage lookups).
+- Run 3 (first 1,000 rows removed from the February file, same path): all 7 steps cached. The cache key does not see `data/raw`; the stale model is reused.
+- Run 4 (`train.lgbm.n_estimators` 100 to 50): all 7 steps cached. The cache key does not see `params.yaml`, because steps read it at call time.
+- Every one of the four MLflow runs ended with 0 metrics and `promoted=True`; the registry had 0 versions.
+- Decision: caching stays off (`enable_cache=False`). Caching here would need data and params passed as step inputs, and `track` and `register` marked `enable_cache=False`.
+  DVC's skip rule covers the same ground with the right inputs (`dvc.yaml` deps and params).
+
 ## Mapping, from this repo to ZenML
 
 | Today (Prefect) | On the branch (ZenML) | Notes |
