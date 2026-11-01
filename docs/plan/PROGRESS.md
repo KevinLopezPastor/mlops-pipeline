@@ -27,6 +27,41 @@
 
 ## Sessions
 
+### 2026-11-01: Stretch done (Prefect swapped for ZenML on `stretch-zenml`, comparison written); branch pushed, not merged
+
+**Done** (12 commits on the branch `stretch-zenml`, never merged into `main`; pushed as evidence)
+- Page: [docs/zenml-vs-prefect.md](https://github.com/KevinLopezPastor/mlops-pipeline/blob/stretch-zenml/docs/zenml-vs-prefect.md). Plan with every measurement: [docs/plan/stretch-zenml.md](https://github.com/KevinLopezPastor/mlops-pipeline/blob/stretch-zenml/docs/plan/stretch-zenml.md). Verdict: Prefect for this project.
+- Swap: `zenml[local]` 0.98.0 replaces `prefect`; the six `@task` became `@step` with unchanged bodies (0 lines of logic changed in `src/taxi`); `flows/training_flow.py` is now a `@pipeline`
+  plus a seventh step, `track` (metrics and `log_model`), because a pipeline body only wires steps. One `mlflow.start_run()` in the entry code (option B), so the `lineage.*` tags are as on `main`.
+- Same results on the full data: MAE 5.4802, RMSE capped 6.9655, RMSE raw 31.0753, 225 rows dropped. Smoke sample: MAE 6.2526, 3 rows dropped. 13 tests pass (18 `.fn` calls renamed to `.entrypoint`).
+- Measurements, full data, one run each (WSL, `/mnt/d`): wall time 3 m 01 s against about 1 min on Prefect; peak RSS 2.79 GB against 3.1 GB; artifact store 308 MB.
+- Bad file: fails at the gate with the same message; the ZenML run shows `ingest` completed, `validate` failed, the other steps absent.
+
+**Who wrote what**
+- Kevin: the MLflow run scope (option B), the `track` step (option 1), the custom materializer (option 1), going straight to caching, the verdict edit and the decision to publish the branch.
+- Claude: dependency swap, decorator swap, flow wiring and `track` (at Kevin's request), `flows/materializers.py`, test edits, the experiments, the page draft, this entry.
+
+**Lessons**
+- ZenML's default pandas materializer drops `CategoricalDtype` (Parquet gives dictionary columns back as plain numbers). The model then trained on numbers: MAE 7.2438 instead of 6.2526, with no error.
+  A materializer that stores the categories in a JSON sidecar fixed it. Check artifacts after one round trip, not just row counts.
+- Caching is unsafe for this pipeline. The cache key covers step inputs and code, not `data/raw` or `params.yaml`, which steps read themselves. With caching on, a changed data file and a changed
+  hyperparameter were both ignored, and `track` and `register` were replayed from an earlier run: MLflow runs `FINISHED` with 0 metrics, no model, and `promoted=True`. The branch keeps `enable_cache=False`.
+- A pipeline body only wires steps; side effects such as `log_model` need a step of their own.
+- A run with every step cached still takes about 32 s: fixed startup, not data size.
+- Plain `zenml` is not enough for the local store (`sqlalchemy_utils` missing); install `zenml[local]`. It moves `sqlalchemy` to 2.0.55 and caps `pydantic` at 2.12.5.
+- A background experiment that edits tracked files should restore them on exit (`trap ... EXIT`).
+
+**Open**
+- The 3x slowdown is not explained: about 30 s is fixed startup, the per-step times (13 to 18 s on both 95 k and 9.5 M rows) were not split into ZenML overhead and WSL disk speed.
+- On the branch, `make pipeline`, `reproduce` and `demo` still start a Prefect server and will fail; only `make smoke` was ported. Not needed unless the branch is kept.
+- Not tested: a remote orchestrator or artifact store, ZenML's MLflow tracker component (option A), the ZenML server. The "when ZenML wins" argument rests on documentation, not on a run.
+- The Prefect peak (3.1 GB) was measured in an earlier session, so the memory comparison is indicative.
+- `docs/demo1.png` and `docs/demo2.gif` stay untracked on purpose (Kevin's decision, 2026-11-01).
+- Open list from the 2026-10-28 entry is unchanged: stranger path, `dvc pull` showing `M data/raw/`, private bucket name in `.dvc/config`, registry clutter, credential expiry.
+
+**Next step**
+- Week 1 and its stretch are closed. Before Week 2, pick from the Open list of 2026-10-28 (registry clutter, stranger path, credential expiry).
+
 ### 2026-10-28: Sun block done (AWS Deployment fixed, lineage run, clean-clone proof, README, `make demo`, demo GIF); published and posted
 
 **Done** (in `main` through PRs #6 (Sunday work), #7 (demo GIF) and #8 (old trust policy removed); CI and `AWS Deployment` green on `main`)
